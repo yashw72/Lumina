@@ -41,76 +41,103 @@ DocuMentor AI is a RAG-powered (Retrieval-Augmented Generation) learning assista
 
 ---
 
-## Frontend Setup
+## Setup & Usage
 
-### Prerequisites
-- Node.js 18+ (tested with Node 20 / 24)
-- npm 9+
+### Backend Setup
+1. **Navigate to the backend directory:**
+   ```bash
+   cd backend
+   ```
+2. **Create and activate a virtual environment:**
+   ```bash
+   python -m venv .venv
+   # Windows PowerShell:
+   .\.venv\Scripts\Activate.ps1
+   # macOS / Linux:
+   source .venv/bin/activate
+   ```
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   Add your Google Gemini API key to `GEMINI_API_KEY` in `backend/.env`.
+5. **Start the backend development server:**
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+   - Health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+   - Swagger documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+6. **Run backend unit and integration tests:**
+   ```bash
+   pytest
+   ```
+7. **Run end-to-end API contract smoke test:**
+   ```bash
+   # Run full contract smoke test:
+   python scripts/smoke_test.py
 
-### 1. Install Dependencies
-```bash
-cd frontend
-npm install
-```
+   # Or skip LLM steps if testing without an API key:
+   python scripts/smoke_test.py --skip-llm
+   ```
 
-### 2. Environment Variables
-Create a `.env` file in the `frontend/` directory (or copy from `.env.example`):
-```bash
-cp .env.example .env
-```
-
-Configuration options:
-```env
-# Backend API base URL
-VITE_API_BASE_URL=http://localhost:8000
-
-# Set to true to test the UI with realistic mock data without the backend running
-VITE_USE_MOCK=false
-```
-
-### 3. Run Development Server
-```bash
-npm run dev
-```
-The application will be accessible at [http://localhost:5173](http://localhost:5173).
-
-### 4. Production Build
-```bash
-npm run build
-npm run preview
-```
+### Frontend Setup
+1. **Navigate to the frontend directory:**
+   ```bash
+   cd frontend
+   ```
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+3. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+4. **Start the frontend development server:**
+   ```bash
+   npm run dev
+   ```
+   The UI will open at [http://localhost:5173](http://localhost:5173).
 
 ---
 
 ## Docker Setup
 
-Run the full stack (backend and frontend) with Docker Compose:
+Run the entire full-stack application (backend and frontend) with Docker Compose:
 
 ```bash
 docker compose up --build
 ```
-- Frontend: [http://localhost:5173](http://localhost:5173)
-- Backend API & Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Frontend UI: [http://localhost:5173](http://localhost:5173)
+- Backend API & Interactive Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## Screenshots
+## API Overview
+See [`docs/api.md`](docs/api.md) for the complete API contract.
 
-### 1. Document Library & Drag-and-Drop Upload
-<!-- Add screenshot: docs/screenshots/home-library.png -->
-*(Screenshot placeholder: Document library with file cards, upload progress, and status badges)*
+### Example: Upload a Document
+```bash
+curl -X POST "http://localhost:8000/api/documents/upload" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@sample_notes.pdf"
+```
 
-### 2. Grounded Chat with Source Citations
-<!-- Add screenshot: docs/screenshots/chat-citations.png -->
-*(Screenshot placeholder: RAG chat interface showing markdown answers and collapsible source snippets with page numbers)*
-
-### 3. Interactive 3D Flashcards
-<!-- Add screenshot: docs/screenshots/flashcards.png -->
-*(Screenshot placeholder: 3D flip card with question, answer, shuffle, and deck progress)*
-
-### 4. Practice Quiz & Knowledge Check
-<!-- Add screenshot: docs/screenshots/quiz.png -->
-*(Screenshot placeholder: Multiple choice quiz with immediate correctness indicator and explanation)*
+### Example: Chat with Document
+```bash
+curl -X POST "http://localhost:8000/api/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is mutual exclusion?",
+    "document_ids": [1],
+    "session_id": null
+  }'
+```
 
 ---
 
@@ -129,7 +156,18 @@ documentor-ai/
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── Dockerfile
-│   └── app/
+│   ├── pytest.ini
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── core/
+│   │   ├── db/
+│   │   ├── schemas/
+│   │   ├── api/routes/
+│   │   └── services/
+│   ├── scripts/
+│   │   ├── try_llm.py
+│   │   └── smoke_test.py
+│   └── tests/
 └── frontend/
     ├── package.json
     ├── .env.example
@@ -139,21 +177,15 @@ documentor-ai/
     └── src/
         ├── main.jsx
         ├── App.jsx
-        ├── api/                  # client.js, documents.js, chat.js, study.js, mock.js
+        ├── api/
         ├── components/
-        │   ├── layout/           # Navbar.jsx, Layout.jsx
-        │   ├── documents/        # UploadBox.jsx, DocumentList.jsx, DocumentCard.jsx
-        │   ├── chat/             # ChatWindow.jsx, MessageBubble.jsx, ChatInput.jsx, SourceCard.jsx
-        │   ├── study/            # SummaryPanel.jsx, FlashcardDeck.jsx, QuizPanel.jsx
-        │   └── common/           # Button.jsx, Loader.jsx, EmptyState.jsx, BackendBanner.jsx
-        ├── pages/                # HomePage.jsx, ChatPage.jsx, StudyPage.jsx
-        ├── hooks/                # useDocuments.js, useChat.js, useBackendStatus.js
-        └── styles/index.css
+        ├── hooks/
+        ├── pages/
+        └── styles/
 ```
 
 ---
 
 ## Team
-
 - **Yash**: Backend, RAG pipeline, vector DB, LLM, study tools, tests (`backend/`)
 - **Kaustubh**: Frontend UI, API integration, UX, polish (`frontend/`)
