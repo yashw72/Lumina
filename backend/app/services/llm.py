@@ -38,12 +38,27 @@ def _strip_json_fences(text: str) -> str:
     return text
 
 
+def _get_candidate_models(primary_model: str) -> List[str]:
+    candidates = [primary_model] if primary_model else []
+    fallbacks = [
+        "gemini-3.1-flash-lite",
+        "gemini-3.5-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash",
+        "gemini-3.8-flash",
+    ]
+    for fb in fallbacks:
+        if fb not in candidates:
+            candidates.append(fb)
+    return candidates
+
+
 def generate(
     prompt: str,
     system_instruction: Optional[str] = None,
     temperature: float = 0.2,
 ) -> str:
-    """Calls Gemini LLM to generate a text response."""
+    """Calls Gemini LLM to generate a text response with automatic model fallback."""
     settings = get_settings()
     client = _get_client()
 
@@ -52,23 +67,39 @@ def generate(
         system_instruction=system_instruction if system_instruction else None,
     )
 
-    try:
-        response = client.models.generate_content(
-            model=settings.LLM_MODEL,
-            contents=prompt,
-            config=config,
-        )
-        if not response or not response.text:
-            raise LLMError("LLM returned an empty response.")
-        return response.text.strip()
-    except APIError as e:
-        logger.error("Gemini API error during text generation: %s", str(e), exc_info=True)
-        raise LLMError(f"Gemini API error: {str(e)}", status_code=502) from e
-    except RuntimeError:
-        raise
-    except Exception as e:
-        logger.error("Unexpected error during text generation: %s", str(e), exc_info=True)
-        raise LLMError(f"Failed to generate LLM response: {str(e)}", status_code=500) from e
+    models_to_try = _get_candidate_models(settings.LLM_MODEL)
+    last_error: Optional[Exception] = None
+
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=config,
+            )
+            if response and response.text:
+                return response.text.strip()
+        except APIError as e:
+            last_error = e
+            err_msg = str(e)
+            if "503" in err_msg or "429" in err_msg or "404" in err_msg or "UNAVAILABLE" in err_msg:
+                logger.warning(
+                    "Model %s unavailable/overloaded (%s). Attempting fallback...",
+                    model_name,
+                    err_msg[:120],
+                )
+                continue
+            logger.error("Gemini API error during text generation: %s", str(e), exc_info=True)
+            raise LLMError(f"Gemini API error: {str(e)}", status_code=502) from e
+        except RuntimeError:
+            raise
+        except Exception as e:
+            last_error = e
+            logger.warning("Error with model %s: %s. Attempting fallback...", model_name, str(e))
+            continue
+
+    logger.error("All candidate models failed during text generation: %s", str(last_error))
+    raise LLMError(f"Gemini API error across all models: {str(last_error)}", status_code=502)
 
 
 def generate_json(
@@ -77,7 +108,7 @@ def generate_json(
 ) -> Union[Dict[str, Any], List[Any]]:
     """
     Calls Gemini asking for strict JSON output, strips markdown fences, parses JSON,
-    and retries once if parsing fails.
+    and retries with automatic model fallback.
     """
     settings = get_settings()
     client = _get_client()
@@ -92,34 +123,46 @@ def generate_json(
         system_instruction=system_instruction if system_instruction else None,
     )
 
+    models_to_try = _get_candidate_models(settings.LLM_MODEL)
     last_error: Optional[Exception] = None
 
-    for attempt in range(2):
-        try:
-            response = client.models.generate_content(
-                model=settings.LLM_MODEL,
-                contents=json_prompt,
-                config=config,
-            )
-            raw_text = response.text or ""
-            cleaned = _strip_json_fences(raw_text)
-            parsed = json.loads(cleaned)
-            return parsed
-        except (json.JSONDecodeError, ValueError) as parse_err:
-            last_error = parse_err
-            logger.warning(
-                "JSON decode failed on attempt %d: %s. Raw text: %s",
-                attempt + 1,
-                str(parse_err),
-                raw_text if 'raw_text' in locals() else 'None',
-            )
-        except APIError as e:
-            logger.error("Gemini API error during JSON generation: %s", str(e), exc_info=True)
-            raise LLMError(f"Gemini API error: {str(e)}", status_code=502) from e
-        except RuntimeError:
-            raise
-        except Exception as e:
-            logger.error("Unexpected error during JSON generation: %s", str(e), exc_info=True)
-            raise LLMError(f"Failed to generate JSON response: {str(e)}", status_code=500) from e
+    for model_name in models_to_try:
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=json_prompt,
+                    config=config,
+                )
+                raw_text = response.text or ""
+                cleaned = _strip_json_fences(raw_text)
+                parsed = json.loads(cleaned)
+                return parsed
+            except (json.JSONDecodeError, ValueError) as parse_err:
+                last_error = parse_err
+                logger.warning(
+                    "JSON decode failed with %s on attempt %d: %s.",
+                    model_name,
+                    attempt + 1,
+                    str(parse_err),
+                )
+            except APIError as e:
+                last_error = e
+                err_msg = str(e)
+                if "503" in err_msg or "429" in err_msg or "404" in err_msg or "UNAVAILABLE" in err_msg:
+                    logger.warning(
+                        "Model %s unavailable (%s). Moving to next model candidate...",
+                        model_name,
+                        err_msg[:120],
+                    )
+                    break
+                logger.error("Gemini API error during JSON generation: %s", str(e), exc_info=True)
+                raise LLMError(f"Gemini API error: {str(e)}", status_code=502) from e
+            except RuntimeError:
+                raise
+            except Exception as e:
+                last_error = e
+                break
 
-    raise LLMError(f"Failed to parse valid JSON from LLM after retry: {str(last_error)}")
+    raise LLMError(f"Failed to generate valid JSON across model candidates: {str(last_error)}")
+

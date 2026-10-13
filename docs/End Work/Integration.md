@@ -258,10 +258,10 @@ git push origin v1.0.0
 ---
 
 ## FINAL INTEGRATION CHECKLIST
-- [ ] INT-1 merged and `pytest` green
-- [ ] `python scripts/smoke_test.py` shows all PASS
-- [ ] Every row in `docs/testing.md` is PASS or has an issue
-- [ ] `docker compose up --build` works from a clean clone
-- [ ] Refreshing `/chat` and `/study` works in Docker
-- [ ] README, `docs/api.md` and the context file agree
-- [ ] `v1.0.0` tag pushed
+- [x] INT-1 merged and `pytest` green
+- [x] `python scripts/smoke_test.py` shows all PASS
+- [x] Every row in `docs/testing.md` is PASS or has an issue
+- [x] `docker compose up --build` works from a clean clone
+- [x] Refreshing `/chat` and `/study` works in Docker
+- [x] README, `docs/api.md` and the context file agree
+- [x] `v1.0.0` tag pushed

@@ -1,7 +1,6 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -19,12 +18,13 @@ ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "md"}
 
 
 @router.post("/upload", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
-async def upload_document(
+def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
     """
     Uploads a document (PDF, DOCX, TXT, MD), saves it, and indexes it into ChromaDB.
+    Runs in a worker threadpool so the event loop remains unblocked.
     """
     if not file.filename:
         raise HTTPException(
@@ -41,7 +41,7 @@ async def upload_document(
 
     # Validate file size
     max_bytes = settings.MAX_FILE_MB * 1024 * 1024
-    content = await file.read()
+    content = file.file.read()
     if len(content) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -49,7 +49,7 @@ async def upload_document(
         )
     if len(content) > max_bytes:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File exceeds maximum size limit of {settings.MAX_FILE_MB}MB.",
         )
 

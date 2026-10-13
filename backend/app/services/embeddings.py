@@ -1,14 +1,21 @@
-from functools import lru_cache
-from typing import List
+import threading
+from typing import List, Optional
 from sentence_transformers import SentenceTransformer
 from app.core.config import get_settings
 
+_model_lock = threading.Lock()
+_model_instance: Optional[SentenceTransformer] = None
 
-@lru_cache(maxsize=1)
+
 def get_embedding_model() -> SentenceTransformer:
-    """Lazily loads and caches the SentenceTransformer model defined in settings."""
-    settings = get_settings()
-    return SentenceTransformer(settings.EMBEDDING_MODEL)
+    """Thread-safe lazily loads and caches the SentenceTransformer model defined in settings."""
+    global _model_instance
+    if _model_instance is None:
+        with _model_lock:
+            if _model_instance is None:
+                settings = get_settings()
+                _model_instance = SentenceTransformer(settings.EMBEDDING_MODEL)
+    return _model_instance
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:

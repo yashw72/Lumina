@@ -27,9 +27,10 @@ def answer_question(
     """
     RAG QA pipeline:
     1. Manage or create chat session and record user query.
-    2. Embed question and query vector store for top-K chunks.
-    3. If no relevant chunks (score < 0.25), return standard not-found message.
-    4. Otherwise format context blocks and conversation history, query LLM, and persist response.
+    2. Check for short follow-up questions (< 6 words) and enrich retrieval query with previous question.
+    3. Embed retrieval query and search vector store for top-K chunks.
+    4. Guardrail against low-confidence chunks (< 0.25).
+    5. Construct context-grounded prompt and query LLM.
     """
     settings = get_settings()
 
@@ -54,15 +55,33 @@ def answer_question(
     db.commit()
     db.refresh(user_msg)
 
-    # 2. Vector search
-    q_emb = embeddings.embed_query(question)
+    # 2. Check for follow-up question
+    retrieval_query = question
+    words = question.strip().split()
+    if len(words) < 6:
+        prev_user_msg = (
+            db.query(ChatMessage)
+            .filter(
+                ChatMessage.session_id == session.id,
+                ChatMessage.role == "user",
+                ChatMessage.id != user_msg.id,
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .first()
+        )
+        if prev_user_msg and prev_user_msg.content:
+            retrieval_query = f"{prev_user_msg.content} {question}"
+            logger.info("Enriched follow-up retrieval query: '%s'", retrieval_query)
+
+    # 3. Vector search
+    q_emb = embeddings.embed_query(retrieval_query)
     chunks = vector_store.query(
         query_embedding=q_emb,
         top_k=settings.TOP_K,
         document_ids=document_ids,
     )
 
-    # 3. Guardrail: no chunks or relevance score below threshold
+    # 4. Guardrail: no chunks or relevance score below threshold
     if not chunks or max(c["score"] for c in chunks) < 0.25:
         answer = "I could not find this information in your uploaded documents."
         sources: List[Dict[str, Any]] = []
@@ -82,7 +101,7 @@ def answer_question(
             "sources": sources,
         }
 
-    # 4. Build prompt with context and history
+    # 5. Build prompt with context and history
     past_messages = (
         db.query(ChatMessage)
         .filter(ChatMessage.session_id == session.id, ChatMessage.id != user_msg.id)

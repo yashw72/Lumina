@@ -5,7 +5,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: documentor-backend
     ports:
       - "8000:8000"
     env_file:
@@ -19,9 +18,9 @@ services:
       - ./data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 60s
     restart: unless-stopped
 
@@ -30,9 +29,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=http://localhost:8000
-        - VITE_USE_MOCK=false
-    container_name: documentor-frontend
+        VITE_API_BASE_URL: http://localhost:8000
+        VITE_USE_MOCK: "false"
     ports:
       - "5173:80"
     depends_on:
