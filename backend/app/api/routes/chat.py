@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import ChatSession, ChatMessage
+from app.db.models import ChatSession, ChatMessage, Document
 from app.schemas.chat import (
     ChatRequest,
     ChatResponse,
@@ -22,9 +22,31 @@ def chat_with_documents(
     db: Session = Depends(get_db),
 ):
     """Answers a user question grounded strictly in uploaded documents."""
+    clean_question = payload.question.strip()
+    if not clean_question:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Question cannot be empty or only whitespace.",
+        )
+
+    # Validate that document_ids exist if specified
+    if payload.document_ids:
+        existing_ids = {
+            row[0]
+            for row in db.query(Document.id)
+            .filter(Document.id.in_(payload.document_ids))
+            .all()
+        }
+        missing_ids = set(payload.document_ids) - existing_ids
+        if missing_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document ID(s) not found: {sorted(list(missing_ids))}",
+            )
+
     return answer_question(
         db=db,
-        question=payload.question,
+        question=clean_question,
         document_ids=payload.document_ids,
         session_id=payload.session_id,
     )
