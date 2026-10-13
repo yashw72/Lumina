@@ -11,6 +11,7 @@ import app.db.models  # noqa: F401
 from app.api.routes.health import router as health_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.chat import router as chat_router
+from app.api.routes.study import router as study_router
 
 setup_logging()
 logger = logging.getLogger("documentor.main")
@@ -48,3 +49,4 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
+app.include_router(study_router, prefix="/api")
