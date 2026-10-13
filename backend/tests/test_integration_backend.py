@@ -65,12 +65,14 @@ def test_file_too_large_returns_413(monkeypatch):
 
 
 def test_follow_up_question_enrichment(monkeypatch):
+    import uuid
+    sid = f"followup-{uuid.uuid4().hex[:8]}"
     # Setup test session in DB
     db = SessionLocal()
-    session = ChatSession(id="followup-session-1")
+    session = ChatSession(id=sid)
     db.add(session)
-    user_msg_1 = ChatMessage(session_id="followup-session-1", role="user", content="What is deadlock?")
-    asst_msg_1 = ChatMessage(session_id="followup-session-1", role="assistant", content="Deadlock is ...")
+    user_msg_1 = ChatMessage(session_id=sid, role="user", content="What is deadlock?")
+    asst_msg_1 = ChatMessage(session_id=sid, role="assistant", content="Deadlock is ...")
     db.add(user_msg_1)
     db.add(asst_msg_1)
     db.commit()
@@ -91,7 +93,7 @@ def test_follow_up_question_enrichment(monkeypatch):
         db=db,
         question="how does it happen?",  # 4 words < 6 words
         document_ids=None,
-        session_id="followup-session-1",
+        session_id=sid,
     )
     db.close()
 
