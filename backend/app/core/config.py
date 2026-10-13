@@ -51,8 +51,10 @@ class Settings(BaseSettings):
             if path_part and path_part != ":memory:":
                 p = Path(path_part)
                 if not p.is_absolute():
-                    # Resolve relative to project root
-                    resolved_path = (PROJECT_ROOT / p).resolve()
+                    if path_part.startswith(".."):
+                        resolved_path = (BACKEND_DIR / p).resolve()
+                    else:
+                        resolved_path = (PROJECT_ROOT / p).resolve()
                     return f"sqlite:///{resolved_path.as_posix()}"
         return value
 
@@ -61,7 +63,10 @@ class Settings(BaseSettings):
     def resolve_paths(cls, value: str) -> str:
         p = Path(value)
         if not p.is_absolute():
-            resolved_path = (PROJECT_ROOT / p).resolve()
+            if str(value).startswith(".."):
+                resolved_path = (BACKEND_DIR / p).resolve()
+            else:
+                resolved_path = (PROJECT_ROOT / p).resolve()
             return str(resolved_path)
         return value
 
