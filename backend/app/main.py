@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.logging import setup_logging
+from app.db.database import engine, Base
+import app.db.models  # noqa: F401
 from app.api.routes.health import router as health_router
 
 setup_logging()
@@ -21,6 +23,10 @@ async def lifespan(app: FastAPI):
     upload_path.mkdir(parents=True, exist_ok=True)
     chroma_path.mkdir(parents=True, exist_ok=True)
     logger.info("Ensured storage directories exist: %s, %s", upload_path, chroma_path)
+
+    # Create database tables
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables verified/created successfully.")
     yield
 
 
