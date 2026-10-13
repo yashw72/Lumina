@@ -1,23 +1,22 @@
 import React from 'react';
 import { useDocuments } from '../hooks/useDocuments.js';
 import UploadBox from '../components/documents/UploadBox.jsx';
-import Loader from '../components/common/Loader.jsx';
-import EmptyState from '../components/common/EmptyState.jsx';
-import { Sparkles, BookOpen } from 'lucide-react';
+import DocumentList from '../components/documents/DocumentList.jsx';
+import { Sparkles, BookOpen, Layers } from 'lucide-react';
 
 export default function HomePage() {
-  const { documents, loading, error, refresh, remove } = useDocuments();
+  const { documents, loading, refresh, remove } = useDocuments();
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12 pb-12">
       {/* Hero Section */}
-      <section className="text-center max-w-3xl mx-auto pt-4 pb-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 text-xs font-semibold mb-4">
+      <section className="text-center max-w-3xl mx-auto pt-4">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200/70 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 text-xs font-semibold mb-5 shadow-xs">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Intelligent RAG-Powered Study Assistant</span>
         </div>
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-          Supercharge your study notes with <span className="text-indigo-600 dark:text-indigo-400">DocuMentor AI</span>
+          Turn your course material into an <span className="text-indigo-600 dark:text-indigo-400">interactive mentor</span>
         </h1>
         <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed">
           Upload textbooks, lecture notes, or syllabus slides. Chat with exact page-level source citations and automatically generate summaries, flashcards, and quizzes.
@@ -29,43 +28,35 @@ export default function HomePage() {
         <UploadBox onUploaded={refresh} />
       </section>
 
-      {/* Documents Status */}
-      <section className="max-w-5xl mx-auto pt-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <span>Document Library</span>
-          </h2>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-            {documents.length} {documents.length === 1 ? 'document' : 'documents'}
-          </span>
+      {/* Document Library Section */}
+      <section className="max-w-6xl mx-auto pt-4">
+        <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                Document Library
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Manage your uploaded study material and embeddings
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              {documents.length} {documents.length === 1 ? 'document' : 'documents'}
+            </span>
+          </div>
         </div>
 
-        {loading ? (
-          <Loader message="Loading document library..." />
-        ) : documents.length === 0 ? (
-          <EmptyState
-            title="No documents uploaded yet"
-            description="Upload your first study document above to start asking questions and generating flashcards."
-          />
-        ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 divide-y divide-slate-100 dark:divide-slate-800">
-            {documents.map((doc) => (
-              <div key={doc.id} className="py-3 px-2 flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-200">{doc.filename}</h4>
-                  <p className="text-xs text-slate-500">{doc.page_count} pages • {doc.chunk_count} chunks • Status: {doc.status}</p>
-                </div>
-                <button
-                  onClick={() => remove(doc.id)}
-                  className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                >
-                  Delete
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <DocumentList
+          documents={documents}
+          loading={loading}
+          onDelete={remove}
+        />
       </section>
     </div>
   );
