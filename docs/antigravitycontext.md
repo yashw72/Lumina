@@ -63,14 +63,17 @@ documentor-ai/
 ├── antigravitycontext.md
 ├── README.md
 ├── .gitignore
-├── docker-compose.yml            # optional, last step
+├── docker-compose.yml
 ├── docs/
 │   ├── architecture.md           # RAG flow + diagram
-│   └── api.md                    # API contract copy
+│   ├── api.md                    # API contract copy
+│   ├── testing.md                # E2E testing checklist
+│   └── demo-script.md            # 5-minute faculty demo
 ├── backend/
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── Dockerfile
+│   ├── pytest.ini
 │   ├── app/
 │   │   ├── main.py               # FastAPI app, CORS, router registration
 │   │   ├── core/
@@ -98,23 +101,28 @@ documentor-ai/
 │   │       ├── llm.py            # Gemini wrapper
 │   │       ├── rag.py            # retrieve + prompt + generate
 │   │       └── study_tools.py    # summary, flashcards, quiz
+│   ├── scripts/
+│   │   ├── try_llm.py
+│   │   └── smoke_test.py
 │   └── tests/
 ├── frontend/
 │   ├── package.json
 │   ├── .env.example
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   ├── index.html
 │   └── src/
 │       ├── main.jsx
 │       ├── App.jsx               # router
-│       ├── api/                  # client.js, documents.js, chat.js, study.js
+│       ├── api/                  # client.js, documents.js, chat.js, study.js, mock.js
 │       ├── components/
-│       │   ├── layout/           # Navbar.jsx, Sidebar.jsx
+│       │   ├── layout/           # Navbar.jsx, Layout.jsx
 │       │   ├── documents/        # UploadBox.jsx, DocumentList.jsx, DocumentCard.jsx
 │       │   ├── chat/             # ChatWindow.jsx, MessageBubble.jsx, ChatInput.jsx, SourceCard.jsx
 │       │   ├── study/            # SummaryPanel.jsx, FlashcardDeck.jsx, QuizPanel.jsx
-│       │   └── common/           # Button.jsx, Loader.jsx, EmptyState.jsx
+│       │   └── common/           # Button.jsx, Loader.jsx, EmptyState.jsx, BackendBanner.jsx
 │       ├── pages/                # HomePage.jsx, ChatPage.jsx, StudyPage.jsx
-│       ├── hooks/                # useDocuments.js, useChat.js
+│       ├── hooks/                # useDocuments.js, useChat.js, useBackendStatus.js
 │       └── styles/index.css
 └── data/                         # gitignored: uploads/ and chroma/ created at runtime
 ```
@@ -128,19 +136,20 @@ documentor-ai/
 GEMINI_API_KEY=your_key_here
 LLM_MODEL=gemini-2.5-flash
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-DATABASE_URL=sqlite:///../data/documentor.db
-UPLOAD_DIR=../data/uploads
-CHROMA_DIR=../data/chroma
+DATABASE_URL=sqlite:///data/documentor.db
+UPLOAD_DIR=data/uploads
+CHROMA_DIR=data/chroma
 MAX_FILE_MB=20
 CHUNK_SIZE=800
 CHUNK_OVERLAP=150
 TOP_K=5
-CORS_ORIGINS=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
 **frontend/.env.example**
 ```
 VITE_API_BASE_URL=http://localhost:8000
+VITE_USE_MOCK=false
 ```
 
 Ports: backend `8000`, frontend `5173`. Never commit real `.env` files or API keys.
@@ -211,11 +220,9 @@ Base URL: `http://localhost:8000/api`. All responses are JSON. Errors use `{"det
 
 ## 8. Git Workflow
 
-- Branches: `main` (stable) <- feature branches named `feat/<area>-<short-name>` (e.g. `feat/backend-chunker`, `feat/frontend-chat-ui`).
-- Commit after **every completed prompt chunk** using Conventional Commits:
-  `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `style:`
-- Open a Pull Request for each group of chunks; the other person reviews and merges.
-- Pull `main` before starting a new chunk to avoid conflicts.
+- Branches: `main` (stable) <- feature branches named `feat/<area>-<short-name>`.
+- Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `style:`.
+- Pull Requests with review before merging.
 
 ---
 
@@ -228,10 +235,23 @@ Base URL: `http://localhost:8000/api`. All responses are JSON. Errors use `{"det
 
 ---
 
-## 10. Build Order (high level)
+## 10. Build Order & Final Status
 
-1. Repo + skeleton (Yash) -> 2. Backend foundation (Yash) || Frontend foundation with mock data (Kaustubh)
-3. Ingestion + vector store (Yash) || Upload + library UI (Kaustubh)
-4. LLM + RAG chat (Yash) || Chat UI + citations (Kaustubh)
-5. Study tools (Yash) || Study UI (Kaustubh)
-6. Integration with real backend, tests, polish, docs, Docker (both)
+1. Repo + skeleton (Yash) -> Complete.
+2. Backend foundation (Yash) || Frontend foundation with mock data (Kaustubh) -> Complete.
+3. Ingestion + vector store (Yash) || Upload + library UI (Kaustubh) -> Complete.
+4. LLM + RAG chat (Yash) || Chat UI + citations (Kaustubh) -> Complete.
+5. Study tools (Yash) || Study UI (Kaustubh) -> Complete.
+6. Integration & hardening (INT-1 through INT-6) -> Complete.
+   - All 20 automated tests passing.
+   - Automated contract smoke test verified (`backend/scripts/smoke_test.py`).
+   - Production Docker Compose configured with container healthchecks.
+
+---
+
+## 11. Known Limitations
+
+1. **Authentication & Multi-tenancy**: Designed as a single-user / local learning assistant without user accounts or login.
+2. **Vector Store Sharing**: Documents are indexed into a single shared ChromaDB collection partitioned by `document_id` metadata.
+3. **Scanned Documents**: PDFs must have selectable, extractable text layers; scanned image-only PDFs require external OCR before ingestion.
+4. **File Size Limit**: Single document upload capped at 20MB (`MAX_FILE_MB`) for memory and performance considerations.
