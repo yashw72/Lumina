@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Data folder
+data/
+
+# macOS
+.DS_Store
+
+# IDE folders
+.vscode/
+.idea/
