@@ -11,7 +11,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
-    LLM_MODEL: str = "gemini-3.8-flash"
+    LLM_MODEL: str = "gemini-3.1-flash-lite"
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     DATABASE_URL: str = "sqlite:///data/documentor.db"
     UPLOAD_DIR: str = "data/uploads"
