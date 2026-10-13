@@ -10,30 +10,15 @@ def get_document_text(document_id: int) -> str:
     Fetches chunks for a document from ChromaDB ordered by chunk_index.
     If the text exceeds ~12,000 characters, samples chunks evenly to fit within token limits.
     """
-    collection = vector_store.get_document_collection()
-    data = collection.get(
-        where={"document_id": document_id},
-        include=["documents", "metadatas"],
-    )
-
-    docs = data.get("documents") or []
-    metadatas = data.get("metadatas") or []
-
-    if not docs:
+    chunks = vector_store.get_document_chunks(document_id)
+    if not chunks:
         raise ValueError(f"No indexed content found in vector store for document ID {document_id}.")
 
-    # Pair and sort by chunk_index
-    items = []
-    for doc_text, meta in zip(docs, metadatas):
-        c_idx = meta.get("chunk_index", 0) if meta else 0
-        items.append((c_idx, doc_text))
-    items.sort(key=lambda x: x[0])
-
-    full_chunks = [item[1] for item in items]
-    total_len = sum(len(c) for c in full_chunks)
+    full_texts = [c["text"] for c in chunks]
+    total_len = sum(len(t) for t in full_texts)
 
     if total_len <= 12000:
-        return "\n\n".join(full_chunks)
+        return "\n\n".join(full_texts)
 
     # Sample evenly spaced chunks
     logger.info(
@@ -41,12 +26,11 @@ def get_document_text(document_id: int) -> str:
         document_id,
         total_len,
     )
-    # Estimate how many chunks fit in 12000 characters
-    avg_chunk_len = max(total_len / len(full_chunks), 1)
+    avg_chunk_len = max(total_len / len(full_texts), 1)
     target_count = max(1, int(12000 / avg_chunk_len))
-    step = max(1, len(full_chunks) // target_count)
+    step = max(1, len(full_texts) // target_count)
 
-    sampled = full_chunks[::step]
+    sampled = full_texts[::step]
     combined = "\n\n".join(sampled)
     return combined[:12000]
 
@@ -93,7 +77,6 @@ def generate_flashcards(document_id: int, count: int = 10) -> List[Dict[str, str
         system_instruction="You are an academic flashcard creator. Output only valid JSON with question and answer pairs.",
     )
 
-    # Validate output
     valid_flashcards: List[Dict[str, str]] = []
     if isinstance(parsed, list):
         for item in parsed:
@@ -133,7 +116,6 @@ def generate_quiz(document_id: int, count: int = 5) -> List[Dict[str, Any]]:
         system_instruction="You are an examination question creator. Produce valid multiple-choice quiz items in JSON.",
     )
 
-    # Validate output
     valid_quiz: List[Dict[str, Any]] = []
     if isinstance(parsed, list):
         for item in parsed:
