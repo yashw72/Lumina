@@ -8,18 +8,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip
+
+# Install CPU-only PyTorch first to keep image lightweight (~150MB instead of 800MB+)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install application dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download embedding model for fast cold start
+# Pre-download the default embedding model at build time
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
-# Copy backend application files
-COPY . .
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p /app/data && \
+    chown -R appuser:appuser /app
 
-# Expose backend port
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+USER appuser
+
 EXPOSE 8000
 
-# Start server
+# Start server bound to all interfaces
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
