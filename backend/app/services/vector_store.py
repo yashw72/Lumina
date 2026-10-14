@@ -102,6 +102,34 @@ def query(
     return hits
 
 
+def get_document_chunks(document_id: int) -> List[Dict[str, Any]]:
+    """
+    Retrieves all indexed chunks for a specific document from ChromaDB,
+    returning [{"text": str, "page": int, "chunk_index": int}] sorted by chunk_index.
+    """
+    collection = get_document_collection()
+    data = collection.get(
+        where={"document_id": document_id},
+        include=["documents", "metadatas"],
+    )
+
+    docs = data.get("documents") or []
+    metadatas = data.get("metadatas") or []
+
+    items = []
+    for doc_text, meta in zip(docs, metadatas):
+        page = int(meta.get("page", 1)) if meta else 1
+        c_idx = int(meta.get("chunk_index", 0)) if meta else 0
+        items.append({
+            "text": str(doc_text),
+            "page": page,
+            "chunk_index": c_idx,
+        })
+
+    items.sort(key=lambda x: x["chunk_index"])
+    return items
+
+
 def delete_document(document_id: int) -> None:
     """Removes all chunks belonging to the specified document from ChromaDB."""
     collection = get_document_collection()

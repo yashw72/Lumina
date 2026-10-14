@@ -77,17 +77,25 @@ def test_study_api_endpoints(monkeypatch):
         lambda *args, **kwargs: [{"question": "Q1", "answer": "A1"}],
     )
 
-    with TestClient(app) as client:
-        # Summary
-        res = client.post("/api/study/summary", json={"document_id": doc_id})
-        assert res.status_code == 200
-        assert "# Summary" in res.json()["summary"]
+    try:
+        with TestClient(app) as client:
+            # Summary
+            res = client.post("/api/study/summary", json={"document_id": doc_id})
+            assert res.status_code == 200
+            assert "# Summary" in res.json()["summary"]
 
-        # Flashcards
-        res = client.post("/api/study/flashcards", json={"document_id": doc_id, "count": 2})
-        assert res.status_code == 200
-        assert len(res.json()["flashcards"]) == 1
+            # Flashcards
+            res = client.post("/api/study/flashcards", json={"document_id": doc_id, "count": 2})
+            assert res.status_code == 200
+            assert len(res.json()["flashcards"]) == 1
 
-        # 404 for missing document
-        res_404 = client.post("/api/study/summary", json={"document_id": 99999})
-        assert res_404.status_code == 404
+            # 404 for missing document
+            res_404 = client.post("/api/study/summary", json={"document_id": 99999})
+            assert res_404.status_code == 404
+    finally:
+        db = SessionLocal()
+        d = db.query(Document).filter(Document.id == doc_id).first()
+        if d:
+            db.delete(d)
+            db.commit()
+        db.close()
