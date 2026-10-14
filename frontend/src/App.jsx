@@ -1,10 +1,47 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
 import StudyPage from './pages/StudyPage';
+import PageTransition from './components/common/PageTransition';
+
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <HomePage />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            <PageTransition>
+              <ChatPage />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/study"
+          element={
+            <PageTransition>
+              <StudyPage />
+            </PageTransition>
+          }
+        />
+      </Routes>
+    </AnimatePresence>
+  );
+}
 
 export default function App() {
   return (
@@ -13,35 +50,23 @@ export default function App() {
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: 'var(--toast-bg, #ffffff)',
-            color: 'var(--toast-color, #0f172a)',
-            borderRadius: '0.75rem',
-            border: '1px solid rgba(226, 232, 240, 0.8)',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-          },
+          className: '!rounded-full !px-5 !py-3 !bg-ink !text-white dark:!bg-white dark:!text-ink !shadow-xl !font-medium !text-xs !border !border-white/10',
           success: {
             iconTheme: {
-              primary: '#10b981',
+              primary: '#A855F7',
               secondary: '#ffffff',
             },
           },
           error: {
             iconTheme: {
-              primary: '#ef4444',
+              primary: '#EF4444',
               secondary: '#ffffff',
             },
           },
         }}
       />
       <Layout>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/study" element={<StudyPage />} />
-        </Routes>
+        <AnimatedRoutes />
       </Layout>
     </BrowserRouter>
   );
