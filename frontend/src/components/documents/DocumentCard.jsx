@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   FileText,
   FileCode,
@@ -11,10 +12,12 @@ import {
   Calendar,
   Layers,
   BookOpen,
-  AlertTriangle,
-  X,
+  ArrowRight,
 } from 'lucide-react';
 import Button from '../common/Button.jsx';
+import IconButton from '../common/IconButton.jsx';
+import Badge from '../common/Badge.jsx';
+import ConfirmDialog from '../common/ConfirmDialog.jsx';
 
 export default function DocumentCard({ document: doc, onDelete }) {
   const navigate = useNavigate();
@@ -30,43 +33,11 @@ export default function DocumentCard({ document: doc, onDelete }) {
         return <FileSpreadsheet className="w-6 h-6 text-blue-500" />;
       case 'md':
       case 'markdown':
-        return <FileCode className="w-6 h-6 text-violet-500" />;
+        return <FileCode className="w-6 h-6 text-lilac-600 dark:text-lilac-400" />;
       case 'txt':
         return <File className="w-6 h-6 text-emerald-500" />;
       default:
         return <File className="w-6 h-6 text-slate-500" />;
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'ready':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Ready
-          </span>
-        );
-      case 'processing':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Processing
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            Failed
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            {status}
-          </span>
-        );
     }
   };
 
@@ -94,109 +65,98 @@ export default function DocumentCard({ document: doc, onDelete }) {
   const isReady = doc.status === 'ready';
 
   return (
-    <div className="relative group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-5 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-200 flex flex-col justify-between">
-      <div>
-        {/* Top Header: Icon, Status, and Delete button */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center shrink-0 shadow-inner">
-            {getFileIcon(doc.file_type)}
+    <>
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        whileHover={{
+          y: -4,
+          boxShadow: '0 20px 40px -15px rgba(168, 85, 247, 0.25)',
+        }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        className="rounded-card p-6 bg-gradient-to-br from-lilac-50/90 via-white to-lilac-100/60 dark:from-ink-soft dark:via-[#14141A] dark:to-lilac-950/20 border border-lilac-200/80 dark:border-white/10 shadow-card flex flex-col justify-between relative group"
+      >
+        <div>
+          {/* Top Row: File Type Icon Box + Status Badge */}
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="w-13 h-13 rounded-2xl bg-white dark:bg-ink p-3 flex items-center justify-center shadow-md border border-black/5 dark:border-white/10 shrink-0">
+              {getFileIcon(doc.file_type)}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge status={doc.status} />
+              <IconButton
+                icon={Trash2}
+                variant="danger"
+                size="sm"
+                aria-label={`Delete ${doc.filename}`}
+                onClick={() => setShowConfirmDelete(true)}
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {getStatusBadge(doc.status)}
-            <button
-              type="button"
-              onClick={() => setShowConfirmDelete(true)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors focus:outline-none"
-              title="Delete document"
-              aria-label={`Delete ${doc.filename}`}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+
+          {/* Title with truncation and tooltip */}
+          <h3
+            className="font-bold text-ink dark:text-white text-base leading-snug line-clamp-1 mb-2 group-hover:text-lilac-700 dark:group-hover:text-lilac-300 transition-colors"
+            title={doc.filename}
+          >
+            {doc.filename}
+          </h3>
+
+          {/* Metadata Row */}
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400 mb-5 bg-white/70 dark:bg-black/30 p-3 rounded-2xl border border-black/5 dark:border-white/5">
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+              <span>{doc.page_count ?? 1} {doc.page_count === 1 ? 'Page' : 'Pages'}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
+              <span>{doc.chunk_count ?? 0} Chunks</span>
+            </div>
+            <div className="flex items-center gap-1.5 col-span-2 pt-1 border-t border-black/5 dark:border-white/5 text-[11px] text-slate-500">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>Added {formatDate(doc.created_at)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Title & Metadata */}
-        <h3
-          className="font-bold text-slate-900 dark:text-slate-100 text-base leading-snug line-clamp-1 mb-2"
-          title={doc.filename}
-        >
-          {doc.filename}
-        </h3>
+        {/* Footer Action Buttons */}
+        <div className="pt-2 flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            className="flex-1"
+            disabled={!isReady}
+            onClick={() => navigate(`/chat?doc=${doc.id}`)}
+          >
+            Chat
+          </Button>
 
-        <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-950/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50">
-          <div className="flex items-center gap-1.5">
-            <BookOpen className="w-3.5 h-3.5 text-slate-400" />
-            <span>{doc.page_count ?? 1} {doc.page_count === 1 ? 'Page' : 'Pages'}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-slate-400" />
-            <span>{doc.chunk_count ?? 0} Chunks</span>
-          </div>
-          <div className="flex items-center gap-1.5 col-span-2">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>Uploaded {formatDate(doc.created_at)}</span>
-          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            disabled={!isReady}
+            onClick={() => navigate(`/study?doc=${doc.id}`)}
+          >
+            Study
+          </Button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Action Buttons */}
-      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-        <Button
-          variant="primary"
-          size="sm"
-          className="flex-1"
-          icon={MessageSquare}
-          disabled={!isReady}
-          onClick={() => navigate(`/chat?doc=${doc.id}`)}
-        >
-          Chat
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex-1"
-          icon={GraduationCap}
-          disabled={!isReady}
-          onClick={() => navigate(`/study?doc=${doc.id}`)}
-        >
-          Study
-        </Button>
-      </div>
-
-      {/* Confirmation Modal Overlay */}
-      {showConfirmDelete && (
-        <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs rounded-2xl p-5 z-20 flex flex-col justify-center items-center text-center animate-in fade-in duration-150 border border-rose-200 dark:border-rose-900/50">
-          <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-2">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">
-            Delete this document?
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-xs line-clamp-2">
-            Are you sure you want to remove <span className="font-semibold text-slate-700 dark:text-slate-300">"{doc.filename}"</span>? Its vector index will be deleted.
-          </p>
-          <div className="flex items-center gap-2 w-full max-w-xs">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="flex-1"
-              disabled={isDeleting}
-              onClick={() => setShowConfirmDelete(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              className="flex-1"
-              loading={isDeleting}
-              onClick={handleDelete}
-            >
-              Confirm
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Accessible ConfirmDialog Component */}
+      <ConfirmDialog
+        isOpen={showConfirmDelete}
+        title="Delete this document?"
+        description={`Are you sure you want to remove "${doc.filename}"? Its knowledge chunks and vector embeddings will be permanently erased.`}
+        confirmText="Delete Document"
+        confirmVariant="danger"
+        loading={isDeleting}
+        onConfirm={handleDelete}
+        onClose={() => setShowConfirmDelete(false)}
+      />
+    </>
   );
 }

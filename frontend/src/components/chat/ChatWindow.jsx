@@ -1,69 +1,113 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import MessageBubble from './MessageBubble.jsx';
 import ChatInput from './ChatInput.jsx';
-import { Sparkles, MessageSquare, Lightbulb, Bot, ShieldCheck } from 'lucide-react';
+import EmptyState from '../common/EmptyState.jsx';
+import {
+  Sparkles,
+  BookOpenText,
+  ArrowDown,
+  FileQuestion,
+  ShieldCheck,
+  Upload,
+} from 'lucide-react';
 
 const STARTER_QUESTIONS = [
-  'What are the four necessary conditions for deadlock in operating systems?',
-  'Explain the TCP Three-Way Handshake and connection state transitions.',
-  'What is the difference between 3NF and BCNF in database normalization?',
-  'Summarize the core takeaways and theorems from my uploaded document.',
+  'What are the four necessary conditions for deadlock?',
+  'Explain the TCP Three-Way Handshake step-by-step.',
+  'What is the difference between 3NF and BCNF?',
+  'Summarize the core theorems from my document.',
 ];
 
 export default function ChatWindow({
   messages = [],
   sending = false,
   onSend,
-  selectedDocCount = 0,
+  hasReadyDocuments = true,
 }) {
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom('smooth');
   }, [messages, sending]);
 
-  return (
-    <div className="flex flex-col h-[700px] max-h-[82vh] bg-slate-50/50 dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto py-10">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 shadow-inner">
-              <Sparkles className="w-7 h-7" />
-            </div>
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isUp = scrollHeight - scrollTop - clientHeight > 180;
+    setShowScrollBottom(isUp);
+  };
 
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-              Chat with your course documents
+  return (
+    <div className="relative flex flex-col h-[calc(100dvh-220px)] sm:h-[740px] max-h-[85dvh] bg-white dark:bg-[#15151B] rounded-[32px] border border-black/8 dark:border-white/10 shadow-card overflow-hidden">
+      {/* Scrollable Messages Area */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-4"
+      >
+        {!hasReadyDocuments ? (
+          <div className="h-full flex items-center justify-center">
+            <EmptyState
+              icon={FileQuestion}
+              title="No ready documents available"
+              description="Please upload and index a study document first so DocuMentor AI can retrieve answers."
+              action={
+                <Link
+                  to="/#upload"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-ink text-white dark:bg-white dark:text-ink text-xs font-bold shadow-md hover:scale-105 transition-transform"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload a Document</span>
+                </Link>
+              }
+            />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto py-12">
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-16 h-16 rounded-full bg-lilac-100 text-lilac-700 dark:bg-lilac-950 dark:text-lilac-300 flex items-center justify-center mb-4 shadow-sm"
+            >
+              <Sparkles className="w-8 h-8" />
+            </motion.div>
+
+            <h3 className="text-2xl font-extrabold text-ink dark:text-white tracking-tight mb-2">
+              Ask your documents anything
             </h3>
 
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-              Ask anything about your uploaded study material. Every answer is grounded directly in
-              the text, with verifiable page citations.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+              Every answer is grounded strictly in your study material with verified page-level source
+              citations.
             </p>
 
-            <div className="w-full space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2">
-                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                <span>Suggested questions:</span>
-              </div>
-
+            <div className="w-full space-y-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                Suggested Questions
+              </span>
               {STARTER_QUESTIONS.map((q, idx) => (
-                <button
+                <motion.button
                   key={idx}
                   type="button"
                   onClick={() => onSend(q)}
                   disabled={sending}
-                  className="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-150 shadow-2xs group flex items-center justify-between"
+                  whileHover={{ y: -2, scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full text-left p-3.5 rounded-full bg-lilac-50/90 dark:bg-black/30 border border-lilac-200/70 dark:border-white/10 hover:border-lilac-400 text-xs text-ink dark:text-slate-200 font-medium transition-all shadow-2xs flex items-center justify-between group"
                 >
-                  <span className="line-clamp-1">{q}</span>
-                  <span className="text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-transform text-xs ml-2 shrink-0">
+                  <span className="truncate pr-2">{q}</span>
+                  <span className="w-6 h-6 rounded-full bg-white dark:bg-ink text-ink dark:text-white flex items-center justify-center shrink-0 text-xs group-hover:translate-x-1 transition-transform shadow-2xs">
                     →
                   </span>
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -73,25 +117,29 @@ export default function ChatWindow({
               <MessageBubble key={index} message={msg} />
             ))}
 
-            {/* Thinking / Typing indicator */}
+            {/* Typing indicator with 3 bouncing dots */}
             {sending && (
-              <div className="flex items-start gap-3 animate-in fade-in duration-200">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-1">
-                  <Bot className="w-4 h-4" />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-ink text-white dark:bg-white dark:text-ink flex items-center justify-center shrink-0 shadow-sm mt-1">
+                  <BookOpenText className="w-4 h-4 stroke-[2.2]" />
                 </div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="flex gap-1">
-                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" />
+                <div className="bg-white dark:bg-[#16161D] border border-black/8 dark:border-white/10 rounded-[28px] rounded-tl-xs px-5 py-4 shadow-card">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex gap-1.5 items-center">
+                      <span className="w-2 h-2 rounded-full bg-lilac-600 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-2 h-2 rounded-full bg-lilac-600 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-2 h-2 rounded-full bg-lilac-600 animate-bounce" />
                     </span>
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 ml-1">
-                      DocuMentor is thinking & retrieving relevant passages...
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 ml-1">
+                      DocuMentor is thinking...
                     </span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
           </>
         )}
@@ -99,15 +147,31 @@ export default function ChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-3 sm:p-4 bg-white/70 dark:bg-slate-900/70 border-t border-slate-200/80 dark:border-slate-800 backdrop-blur-sm">
-        <ChatInput onSend={onSend} sending={sending} />
-        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 px-1">
-          <span className="flex items-center gap-1">
+      {/* Floating "Scroll to latest" button */}
+      <AnimatePresence>
+        {showScrollBottom && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            onClick={() => scrollToBottom('smooth')}
+            className="absolute bottom-24 right-8 z-20 w-10 h-10 rounded-full bg-ink text-white dark:bg-white dark:text-ink flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-transform"
+            aria-label="Scroll to newest message"
+          >
+            <ArrowDown className="w-4 h-4" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom Docked Pill Input Bar */}
+      <div className="p-4 sm:p-5 bg-white/80 dark:bg-ink-soft/80 border-t border-black/5 dark:border-white/5 backdrop-blur-md">
+        <ChatInput onSend={onSend} sending={sending} disabled={!hasReadyDocuments} />
+        <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 px-3">
+          <span className="flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Strict RAG: Answers strictly grounded in documents</span>
+            <span>Grounded in verified document chunks</span>
           </span>
-          <span>Shift + Enter for new line</span>
+          <span className="hidden sm:inline">Enter to send • Shift + Enter for new line</span>
         </div>
       </div>
     </div>

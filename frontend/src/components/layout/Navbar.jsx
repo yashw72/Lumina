@@ -1,38 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BookOpen,
+  BookOpenText,
+  Files,
   MessageSquare,
   GraduationCap,
-  Files,
   Sun,
   Moon,
   Menu,
   X,
-  Sparkles,
+  Upload,
 } from 'lucide-react';
+import Button from '../common/Button.jsx';
+import IconButton from '../common/IconButton.jsx';
 
 export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Dark mode state
   const [darkMode, setDarkMode] = useState(() => {
     return (
-      localStorage.getItem('documentor_theme') === 'dark' ||
-      (!('documentor_theme' in localStorage) &&
+      localStorage.getItem('documentor.theme') === 'dark' ||
+      (!('documentor.theme' in localStorage) &&
         window.matchMedia('(prefers-color-scheme: dark)').matches)
     );
   });
 
-  const location = useLocation();
-
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('documentor_theme', 'dark');
+      localStorage.setItem('documentor.theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('documentor_theme', 'light');
+      localStorage.setItem('documentor.theme', 'light');
     }
   }, [darkMode]);
+
+  // Track scroll position for shadow enhancement
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -40,74 +55,124 @@ export default function Navbar() {
   }, [location.pathname]);
 
   const navLinks = [
-    { to: '/', label: 'Documents', icon: Files },
+    { to: '/', label: 'Home', icon: Files },
     { to: '/chat', label: 'Chat', icon: MessageSquare },
-    { to: '/study', label: 'Study Tools', icon: GraduationCap },
+    { to: '/study', label: 'Study', icon: GraduationCap },
   ];
 
+  const handleUploadClick = () => {
+    if (location.pathname !== '/') {
+      navigate('/#upload');
+    } else {
+      const el = document.getElementById('upload');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Brand */}
+    <header className="sticky top-3 sm:top-4 z-40 w-full px-2 sm:px-6 max-w-6xl mx-auto">
+      <div
+        className={`glass rounded-full px-4 sm:px-6 py-2.5 transition-all duration-300 ${
+          scrolled
+            ? 'shadow-xl shadow-lilac-500/10 dark:shadow-black/50 border-black/10 dark:border-white/10'
+            : 'shadow-md border-black/5 dark:border-white/5'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Brand Logo & Title with slight rotation on hover */}
           <NavLink
             to="/"
-            className="flex items-center gap-2.5 group focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg p-1"
+            className="flex items-center gap-2.5 group focus:outline-none rounded-full"
+            aria-label="DocuMentor AI Home"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:shadow-indigo-500/30 group-hover:scale-105 transition-all duration-200">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">
-                  DocuMentor
-                </span>
-                <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50">
-                  AI
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium -mt-1 hidden sm:inline">
-                RAG Learning Assistant
+            <motion.div
+              whileHover={{ rotate: 12, scale: 1.06 }}
+              transition={{ duration: 0.2 }}
+              className="w-9 h-9 rounded-full bg-ink text-white dark:bg-white dark:text-ink flex items-center justify-center shadow-sm"
+            >
+              <BookOpenText className="w-4 h-4 stroke-[2.2]" />
+            </motion.div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-extrabold text-base tracking-tight text-ink dark:text-white">
+                DocuMentor
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-lilac-100 text-lilac-700 dark:bg-lilac-950 dark:text-lilac-300">
+                AI
               </span>
             </div>
           </NavLink>
 
-          {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-1.5">
-            {navLinks.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
+          {/* Center: Desktop Navigation with sliding pill indicator */}
+          <nav className="hidden md:flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-full">
+            {navLinks.map(({ to, label }) => {
+              const isActive =
+                to === '/'
+                  ? location.pathname === '/'
+                  : location.pathname.startsWith(to);
+
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={`relative px-4 py-1.5 rounded-full text-xs font-semibold transition-colors duration-150 select-none ${
                     isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 font-semibold shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
-                  }`
-                }
-              >
-                <Icon className="w-4 h-4" />
-                <span>{label}</span>
-              </NavLink>
-            ))}
+                      ? 'text-white dark:text-ink'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-ink dark:hover:text-white'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activePill"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      className="absolute inset-0 bg-ink dark:bg-white rounded-full z-0 shadow-sm"
+                    />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </NavLink>
+              );
+            })}
           </nav>
 
-          {/* Right Action Icons: Theme Toggle & Mobile Menu */}
+          {/* Right: Theme Toggle with Rotate Morph + Upload Pill + Mobile Hamburger */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            <IconButton
+              icon={() => (
+                <motion.div
+                  key={darkMode ? 'dark' : 'light'}
+                  initial={{ rotate: -90, scale: 0.5, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  {darkMode ? (
+                    <Sun className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-slate-700" />
+                  )}
+                </motion.div>
+              )}
+              variant="white"
+              size="sm"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => setDarkMode(!darkMode)}
+            />
+
+            <Button
+              variant="primary"
+              size="sm"
+              hideArrow={false}
+              onClick={handleUploadClick}
+              className="hidden sm:inline-flex"
             >
-              {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
-            </button>
+              Upload
+            </Button>
 
             {/* Mobile Hamburger Button */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="md:hidden p-2 rounded-full text-ink dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
               aria-label="Toggle navigation menu"
               aria-expanded={mobileMenuOpen}
             >
@@ -116,27 +181,46 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Collapsible Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-3 px-2 border-t border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
-            {navLinks.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-slate-100'
-                  }`
-                }
-              >
-                <Icon className="w-4 h-4" />
-                <span>{label}</span>
-              </NavLink>
-            ))}
-          </div>
-        )}
+        {/* Mobile Slide-down Menu */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="md:hidden overflow-hidden pt-3 pb-2 border-t border-black/5 dark:border-white/5 mt-2 flex flex-col gap-1.5"
+            >
+              {navLinks.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-4 py-2.5 rounded-full text-xs font-semibold transition-colors ${
+                      isActive
+                        ? 'bg-ink text-white dark:bg-white dark:text-ink'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+
+              <div className="pt-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleUploadClick}
+                  className="w-full justify-between"
+                >
+                  Upload New Document
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </header>
   );
