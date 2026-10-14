@@ -49,6 +49,7 @@ Rules: Yash does not edit `frontend/`. Kaustubh does not edit `backend/`. Shared
 - **React 18 + Vite** (JavaScript)
 - **Tailwind CSS**
 - `react-router-dom`, `axios`, `react-hot-toast`, `lucide-react`, `react-markdown`
+- `framer-motion`, `@fontsource-variable/plus-jakarta-sans`
 
 ### Tooling
 - Git + GitHub (feature branches + PRs), Conventional Commits
@@ -102,19 +103,21 @@ documentor-ai/
 ├── frontend/
 │   ├── package.json
 │   ├── .env.example
+│   ├── design/
+│   │   └── reference.webp        # Visual design reference
 │   ├── index.html
 │   └── src/
 │       ├── main.jsx
 │       ├── App.jsx               # router
 │       ├── api/                  # client.js, documents.js, chat.js, study.js
 │       ├── components/
-│       │   ├── layout/           # Navbar.jsx, Sidebar.jsx
+│       │   ├── layout/           # Navbar.jsx, Layout.jsx, Footer.jsx
 │       │   ├── documents/        # UploadBox.jsx, DocumentList.jsx, DocumentCard.jsx
-│       │   ├── chat/             # ChatWindow.jsx, MessageBubble.jsx, ChatInput.jsx, SourceCard.jsx
+│       │   ├── chat/             # ChatWindow.jsx, MessageBubble.jsx, ChatInput.jsx, SourceCard.jsx, ChatPreviewCard.jsx
 │       │   ├── study/            # SummaryPanel.jsx, FlashcardDeck.jsx, QuizPanel.jsx
-│       │   └── common/           # Button.jsx, Loader.jsx, EmptyState.jsx
+│       │   └── common/           # Button.jsx, IconButton.jsx, Card.jsx, Badge.jsx, Skeleton.jsx, Loader.jsx, EmptyState.jsx, Reveal.jsx, CountUp.jsx, ConfirmDialog.jsx, PageTransition.jsx, SectionHeading.jsx
 │       ├── pages/                # HomePage.jsx, ChatPage.jsx, StudyPage.jsx
-│       ├── hooks/                # useDocuments.js, useChat.js
+│       ├── hooks/                # useDocuments.js, useChat.js, useBackendStatus.js
 │       └── styles/index.css
 └── data/                         # gitignored: uploads/ and chroma/ created at runtime
 ```
@@ -203,6 +206,8 @@ Base URL: `http://localhost:8000/api`. All responses are JSON. Errors use `{"det
 - When asking the LLM for flashcards/quiz, require JSON-only output and validate/parse it safely.
 
 **Frontend**
+- Follow `docs/design-system.md` for every visual decision.
+- Use `framer-motion` for animation and always respect `prefers-reduced-motion`.
 - Functional components + hooks only. All HTTP calls live in `src/api/`, never inside components directly.
 - Every async action needs loading, error (toast) and empty states.
 - Tailwind utility classes only; keep components small and reusable.
