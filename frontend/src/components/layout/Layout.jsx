@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, useScroll, useSpring } from 'framer-motion';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import BackendBanner from '../common/BackendBanner';
@@ -6,9 +7,21 @@ import { useBackendStatus } from '../../hooks/useBackendStatus';
 
 export default function Layout({ children }) {
   const { online, checking, retry, baseUrl } = useBackendStatus();
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
+  });
 
   return (
     <div className="min-h-screen bg-lilac-50 dark:bg-ink text-ink dark:text-slate-100 transition-colors duration-200 relative overflow-hidden py-3 sm:py-6 px-2 sm:px-5 flex flex-col justify-between">
+      {/* Top Thin Scroll Progress Bar */}
+      <motion.div
+        style={{ scaleX }}
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-lilac-500 via-purple-500 to-accent-orange origin-left z-50 pointer-events-none"
+      />
+
       {/* Background Floating Blobs */}
       <div
         aria-hidden="true"
