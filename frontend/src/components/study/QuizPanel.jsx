@@ -347,8 +347,8 @@ export default function QuizPanel({
           {currentQ.question}
         </h3>
 
-        {/* Options Stack */}
-        <div className="space-y-3 mb-6">
+        {/* Options Stack with ARIA radiogroup */}
+        <div role="radiogroup" aria-label="Quiz answer options" className="space-y-3 mb-6">
           {currentQ.options.map((option, idx) => {
             const isSelected = selectedOption === idx;
             const isCorrect = idx === currentQ.correct_index;
@@ -374,6 +374,9 @@ export default function QuizPanel({
               <motion.button
                 key={idx}
                 type="button"
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={`Option ${optionLetters[idx]}: ${option}`}
                 disabled={answered}
                 onClick={() => handleSelectOption(idx)}
                 animate={

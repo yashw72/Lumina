@@ -41,7 +41,7 @@ export default function Layout({ children }) {
       />
 
       {/* Main Large Rounded Cream Shell Card */}
-      <div className="w-full max-w-[1440px] mx-auto bg-cream dark:bg-ink-soft rounded-shell border border-black/8 dark:border-white/10 shadow-2xl flex-1 flex flex-col relative transition-colors duration-200 overflow-hidden">
+      <div className="w-full max-w-[1440px] mx-auto bg-cream dark:bg-[#111116] rounded-shell border border-black/8 dark:border-white/10 shadow-2xl flex-1 flex flex-col relative transition-colors duration-200 overflow-hidden">
         {/* Floating Navbar */}
         <Navbar />
 

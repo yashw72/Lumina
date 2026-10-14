@@ -46,7 +46,7 @@ export default function ChatWindow({
   };
 
   return (
-    <div className="relative flex flex-col h-[740px] max-h-[82vh] bg-white dark:bg-ink-soft rounded-[32px] border border-black/8 dark:border-white/10 shadow-card overflow-hidden">
+    <div className="relative flex flex-col h-[calc(100dvh-220px)] sm:h-[740px] max-h-[85dvh] bg-white dark:bg-[#15151B] rounded-[32px] border border-black/8 dark:border-white/10 shadow-card overflow-hidden">
       {/* Scrollable Messages Area */}
       <div
         ref={scrollContainerRef}

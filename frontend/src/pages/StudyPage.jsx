@@ -165,6 +165,7 @@ export default function StudyPage() {
       {/* Top Header bar with SectionHeading & Document Pill Select */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-black/5 dark:border-white/5">
         <SectionHeading
+          as="h1"
           eyebrow="Active Recall"
           title="Study Tools"
           subtitle="Generate executive summaries, flip flashcards, and practice quizzes."
@@ -191,15 +192,37 @@ export default function StudyPage() {
 
       {/* Segmented Tab Control in Glass Pill with Sliding Indicator */}
       <div className="flex justify-center sm:justify-start">
-        <div className="glass p-1.5 rounded-full inline-flex items-center gap-1 shadow-sm border border-black/5 dark:border-white/10">
-          {tabs.map(({ id, label, icon: Icon }) => {
+        <div
+          role="tablist"
+          aria-label="Study aids navigation"
+          className="glass p-1.5 rounded-full inline-flex items-center gap-1 shadow-sm border border-black/5 dark:border-white/10"
+        >
+          {tabs.map(({ id, label, icon: Icon }, idx) => {
             const isActive = activeTab === id;
             return (
               <button
                 key={id}
+                role="tab"
+                id={`tab-${id}`}
+                tabIndex={isActive ? 0 : -1}
+                aria-selected={isActive}
+                aria-controls={`panel-${id}`}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`relative px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-colors select-none flex items-center gap-2 ${
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const nextTab = tabs[(idx + 1) % tabs.length];
+                    setActiveTab(nextTab.id);
+                    document.getElementById(`tab-${nextTab.id}`)?.focus();
+                  } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const prevTab = tabs[(idx - 1 + tabs.length) % tabs.length];
+                    setActiveTab(prevTab.id);
+                    document.getElementById(`tab-${prevTab.id}`)?.focus();
+                  }
+                }}
+                className={`relative px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-colors select-none flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-lilac-500 ${
                   isActive
                     ? 'text-white dark:text-ink'
                     : 'text-slate-600 dark:text-slate-400 hover:text-ink dark:hover:text-white'
@@ -224,6 +247,9 @@ export default function StudyPage() {
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
+          role="tabpanel"
+          id={`panel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12 }}

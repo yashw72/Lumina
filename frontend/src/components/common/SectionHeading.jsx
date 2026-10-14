@@ -8,6 +8,7 @@ export default function SectionHeading({
   centered = true,
   className = '',
   eyebrowIcon: EyebrowIcon = Sparkles,
+  as: HeadingTag = 'h2',
 }) {
   return (
     <div
@@ -27,9 +28,9 @@ export default function SectionHeading({
       )}
 
       {title && (
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-ink dark:text-white tracking-tight leading-tight">
+        <HeadingTag className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-ink dark:text-white tracking-tight leading-tight">
           {title}
-        </h2>
+        </HeadingTag>
       )}
 
       {subtitle && (

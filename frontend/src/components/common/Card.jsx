@@ -12,15 +12,15 @@ export default function Card({
 
   const variants = {
     white:
-      'bg-white dark:bg-ink-soft text-ink dark:text-white border border-black/8 dark:border-white/10 shadow-card',
+      'bg-white dark:bg-[#15151B] text-ink dark:text-white border border-black/8 dark:border-white/10 shadow-card',
     lilac:
-      'bg-gradient-to-br from-lilac-50 via-lilac-100/70 to-lilac-200/50 dark:from-lilac-950/40 dark:to-slate-900 border border-lilac-200/70 dark:border-lilac-800/40 text-ink dark:text-white shadow-card',
+      'bg-gradient-to-br from-lilac-50 via-lilac-100/70 to-lilac-200/50 dark:from-lilac-950/40 dark:to-[#15151B] border border-lilac-200/70 dark:border-lilac-900/40 text-ink dark:text-white shadow-card',
     dark:
-      'bg-ink text-white dark:bg-[#15151B] border border-white/10 shadow-2xl overflow-hidden',
+      'bg-ink text-white dark:bg-[#1B1B22] border border-white/10 shadow-2xl overflow-hidden',
     orange:
       'bg-gradient-to-br from-accent-orange to-accent-deepOrange text-white shadow-orange-glow',
     cream:
-      'bg-cream text-ink dark:bg-ink-soft dark:text-white border border-black/6 dark:border-white/10 shadow-card',
+      'bg-cream text-ink dark:bg-[#15151B] dark:text-white border border-black/6 dark:border-white/10 shadow-card',
   };
 
   const Component = hoverable ? motion.div : 'div';

@@ -248,7 +248,19 @@ export default function FlashcardDeck({
 
       {/* Real 3D Flip Card Container */}
       <div
-        className="relative h-80 sm:h-96 w-full cursor-pointer select-none [perspective:1200px]"
+        role="button"
+        tabIndex={0}
+        aria-live="polite"
+        aria-label={`Flashcard ${currentIndex + 1} of ${deck.length}. Question: ${currentCard.question}. ${
+          isFlipped ? 'Answer revealed: ' + currentCard.answer : 'Tap to reveal answer.'
+        }`}
+        onKeyDown={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            setIsFlipped(!isFlipped);
+          }
+        }}
+        className="relative h-80 sm:h-96 w-full cursor-pointer select-none [perspective:1200px] focus:outline-none focus:ring-4 focus:ring-lilac-400/30 rounded-card"
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <motion.div

@@ -11,7 +11,6 @@ import {
   Menu,
   X,
   Upload,
-  ArrowRight,
 } from 'lucide-react';
 import Button from '../common/Button.jsx';
 import IconButton from '../common/IconButton.jsx';
@@ -73,22 +72,28 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-4 z-40 w-full px-4 sm:px-6 max-w-6xl mx-auto">
+    <header className="sticky top-3 sm:top-4 z-40 w-full px-2 sm:px-6 max-w-6xl mx-auto">
       <div
         className={`glass rounded-full px-4 sm:px-6 py-2.5 transition-all duration-300 ${
-          scrolled ? 'shadow-xl shadow-lilac-500/10 dark:shadow-black/40 border-black/10' : 'shadow-md'
+          scrolled
+            ? 'shadow-xl shadow-lilac-500/10 dark:shadow-black/50 border-black/10 dark:border-white/10'
+            : 'shadow-md border-black/5 dark:border-white/5'
         }`}
       >
         <div className="flex items-center justify-between gap-4">
-          {/* Left: Brand Logo & Title */}
+          {/* Left: Brand Logo & Title with slight rotation on hover */}
           <NavLink
             to="/"
             className="flex items-center gap-2.5 group focus:outline-none rounded-full"
             aria-label="DocuMentor AI Home"
           >
-            <div className="w-9 h-9 rounded-full bg-ink text-white dark:bg-white dark:text-ink flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-200">
+            <motion.div
+              whileHover={{ rotate: 12, scale: 1.06 }}
+              transition={{ duration: 0.2 }}
+              className="w-9 h-9 rounded-full bg-ink text-white dark:bg-white dark:text-ink flex items-center justify-center shadow-sm"
+            >
               <BookOpenText className="w-4 h-4 stroke-[2.2]" />
-            </div>
+            </motion.div>
             <div className="flex items-baseline gap-1.5">
               <span className="font-extrabold text-base tracking-tight text-ink dark:text-white">
                 DocuMentor
@@ -130,15 +135,27 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right: Theme Toggle + Upload Pill Button + Mobile Hamburger */}
+          {/* Right: Theme Toggle with Rotate Morph + Upload Pill + Mobile Hamburger */}
           <div className="flex items-center gap-2">
             <IconButton
-              icon={darkMode ? Sun : Moon}
+              icon={() => (
+                <motion.div
+                  key={darkMode ? 'dark' : 'light'}
+                  initial={{ rotate: -90, scale: 0.5, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  {darkMode ? (
+                    <Sun className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-slate-700" />
+                  )}
+                </motion.div>
+              )}
               variant="white"
               size="sm"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setDarkMode(!darkMode)}
-              className="text-slate-700 dark:text-slate-300"
             />
 
             <Button
@@ -179,7 +196,7 @@ export default function Navbar() {
                   key={to}
                   to={to}
                   className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold transition-colors ${
+                    `flex items-center gap-2.5 px-4 py-2.5 rounded-full text-xs font-semibold transition-colors ${
                       isActive
                         ? 'bg-ink text-white dark:bg-white dark:text-ink'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'

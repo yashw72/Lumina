@@ -70,7 +70,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-ink dark:text-white leading-[1.06]"
+            className="text-[40px] sm:text-6xl md:text-[72px] font-extrabold tracking-tight text-ink dark:text-white leading-[1.06]"
           >
             Study smarter from{' '}
             <span className="bg-gradient-to-r from-lilac-600 via-lilac-500 to-purple-600 dark:from-lilac-400 dark:to-purple-300 bg-clip-text text-transparent px-1.5">
