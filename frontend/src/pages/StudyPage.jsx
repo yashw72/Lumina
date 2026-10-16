@@ -22,6 +22,9 @@ import {
 export default function StudyPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const docParam = searchParams.get('doc');
+  const tabParam = searchParams.get('tab');
+
+  const validTabs = ['summary', 'flashcards', 'quiz'];
 
   const { documents, loading: docsLoading } = useDocuments();
 
@@ -47,7 +50,28 @@ export default function StudyPage() {
   }, [readyDocuments, docParam]);
 
   // Tabs: 'summary' | 'flashcards' | 'quiz'
-  const [activeTab, setActiveTab] = useState('summary');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (tabParam && validTabs.includes(tabParam.toLowerCase())) {
+      return tabParam.toLowerCase();
+    }
+    return 'summary';
+  });
+
+  // Sync tab if URL query param ?tab= changes
+  useEffect(() => {
+    if (tabParam && validTabs.includes(tabParam.toLowerCase()) && tabParam.toLowerCase() !== activeTab) {
+      setActiveTab(tabParam.toLowerCase());
+    }
+  }, [tabParam, activeTab]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', newTab);
+      return next;
+    });
+  };
 
   // Study generation state cache per document
   const [studyCache, setStudyCache] = useState({});
@@ -70,7 +94,14 @@ export default function StudyPage() {
   const handleDocChange = (e) => {
     const newId = Number(e.target.value);
     setSelectedDocId(newId);
-    setSearchParams({ doc: newId });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('doc', newId);
+      if (activeTab) {
+        next.set('tab', activeTab);
+      }
+      return next;
+    });
   };
 
   const handleGenerateSummary = async () => {
@@ -98,6 +129,10 @@ export default function StudyPage() {
     setFlashcardsLoading(true);
     try {
       const res = await getFlashcards(selectedDocId, count);
+      if (!res.flashcards || res.flashcards.length === 0) {
+        toast.error('No flashcards could be generated from this document. Please try again.');
+        return;
+      }
       setStudyCache((prev) => ({
         ...prev,
         [selectedDocId]: {
@@ -208,17 +243,17 @@ export default function StudyPage() {
                 aria-selected={isActive}
                 aria-controls={`panel-${id}`}
                 type="button"
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabChange(id)}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowRight') {
                     e.preventDefault();
                     const nextTab = tabs[(idx + 1) % tabs.length];
-                    setActiveTab(nextTab.id);
+                    handleTabChange(nextTab.id);
                     document.getElementById(`tab-${nextTab.id}`)?.focus();
                   } else if (e.key === 'ArrowLeft') {
                     e.preventDefault();
                     const prevTab = tabs[(idx - 1 + tabs.length) % tabs.length];
-                    setActiveTab(prevTab.id);
+                    handleTabChange(prevTab.id);
                     document.getElementById(`tab-${prevTab.id}`)?.focus();
                   }
                 }}

@@ -39,6 +39,7 @@ class ChatMessage(Base):
     role = Column(String(20), nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
     sources_json = Column(Text, nullable=True)
+    image_url = Column(String(1024), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     session = relationship("ChatSession", back_populates="messages")

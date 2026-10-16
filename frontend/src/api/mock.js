@@ -2,72 +2,11 @@
 
 const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let mockDocuments = [
-  {
-    id: 1,
-    filename: 'Operating-Systems-Concepts.pdf',
-    file_type: 'pdf',
-    page_count: 14,
-    chunk_count: 52,
-    status: 'ready',
-    created_at: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
-  },
-  {
-    id: 2,
-    filename: 'Computer-Networks-Summary.docx',
-    file_type: 'docx',
-    page_count: 8,
-    chunk_count: 28,
-    status: 'ready',
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-  },
-  {
-    id: 3,
-    filename: 'Database-Normalization-Guide.md',
-    file_type: 'md',
-    page_count: 5,
-    chunk_count: 16,
-    status: 'ready',
-    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-];
+let mockDocuments = [];
 
-let nextDocId = 4;
+let nextDocId = 1;
 
-const mockChatSessions = {
-  'session-sample-1': [
-    {
-      role: 'user',
-      content: 'What are the four necessary conditions for deadlock in operating systems?',
-      sources: [],
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      role: 'assistant',
-      content:
-        'According to the uploaded material, a deadlock situation can arise if and only if the following **four conditions** hold simultaneously in a system:\n\n1. **Mutual Exclusion**: At least one resource must be held in a non-shareable mode (only one process can use the resource at any given time).\n2. **Hold and Wait**: A process must currently hold at least one resource and be requesting additional resources being held by other processes.\n3. **No Preemption**: Resources cannot be preempted; a resource can be released only voluntarily by the process holding it after that process has completed its task.\n4. **Circular Wait**: A closed chain of processes exists such that each process holds at least one resource needed by the next process in the chain.\n\nAll four conditions must occur together for deadlock to occur.',
-      sources: [
-        {
-          document_id: 1,
-          filename: 'Operating-Systems-Concepts.pdf',
-          page: 6,
-          snippet:
-            'Coffman conditions for deadlock: Mutual exclusion, Hold and wait, No preemption, and Circular wait. If any single condition is prevented, deadlock is eliminated.',
-          score: 0.94,
-        },
-        {
-          document_id: 1,
-          filename: 'Operating-Systems-Concepts.pdf',
-          page: 7,
-          snippet:
-            'Circular wait implies that there exists a set {P0, P1, ..., Pn} of waiting processes such that P0 is waiting for a resource held by P1, P1 is waiting for P2, and Pn is waiting for P0.',
-          score: 0.88,
-        },
-      ],
-      created_at: new Date(Date.now() - 3590000).toISOString(),
-    },
-  ],
-};
+const mockChatSessions = {};
 
 export const mockApi = {
   // Documents
@@ -186,10 +125,36 @@ export const mockApi = {
       ];
     }
 
+    let imageUrl = null;
+    const trimmedQ = question.trim().toLowerCase();
+    const bareWords = ['explain', 'explain.', 'explain!', 'describe', 'visualize', 'draw', 'diagram', 'image', '/image'];
+    const isIncomplete =
+      bareWords.includes(trimmedQ) ||
+      trimmedQ.endsWith('illustrating') ||
+      trimmedQ.endsWith('components of') ||
+      trimmedQ.endsWith('process of');
+
+    if (isIncomplete) {
+      answerText =
+        "Please specify what concept or topic you would like me to explain or visualize from your documents (for example: *'Explain the four Coffman conditions for deadlock'* or *'Draw a diagram of the TCP 3-way handshake'*).";
+      sources = [];
+      imageUrl = null;
+    } else if (
+      lowerQ.includes('image') ||
+      lowerQ.includes('diagram') ||
+      lowerQ.includes('draw') ||
+      lowerQ.includes('visual') ||
+      lowerQ.startsWith('/image')
+    ) {
+      imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(question)}?width=1024&height=768&nologo=true`;
+      answerText = `Here is an educational visualization and explanation for **"${question}"**:\n\n${answerText}`;
+    }
+
     const assistantMsg = {
       role: 'assistant',
       content: answerText,
       sources,
+      image_url: imageUrl,
       created_at: new Date().toISOString(),
     };
     mockChatSessions[sid].push(assistantMsg);
@@ -198,6 +163,34 @@ export const mockApi = {
       session_id: sid,
       answer: answerText,
       sources,
+      image_url: imageUrl,
+    };
+  },
+
+  async generateImage({ prompt, document_ids, session_id }) {
+    await delay(700);
+    const sid = session_id || `session-mock-${Date.now()}`;
+    if (!mockChatSessions[sid]) {
+      mockChatSessions[sid] = [];
+    }
+
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=768&nologo=true`;
+    const answerText = `### Visual Architecture Diagram: ${prompt}\n\nHere is an interactive conceptual diagram illustrating the primary components, interfaces, and operational flow.`;
+
+    const assistantMsg = {
+      role: 'assistant',
+      content: answerText,
+      sources: [],
+      image_url: imageUrl,
+      created_at: new Date().toISOString(),
+    };
+    mockChatSessions[sid].push(assistantMsg);
+
+    return {
+      session_id: sid,
+      answer: answerText,
+      sources: [],
+      image_url: imageUrl,
     };
   },
 

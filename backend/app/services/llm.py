@@ -30,12 +30,33 @@ def _get_client() -> genai.Client:
     return genai.Client(api_key=api_key)
 
 
-def _strip_json_fences(text: str) -> str:
+def _extract_json_substring(text: str) -> str:
+    """Extracts JSON payload from text, stripping markdown code fences or conversational preambles."""
     text = text.strip()
-    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
     if match:
         return match.group(1).strip()
+
+    bracket_pos = text.find("[")
+    brace_pos = text.find("{")
+
+    start_idx = -1
+    if bracket_pos != -1 and brace_pos != -1:
+        start_idx = min(bracket_pos, brace_pos)
+    elif bracket_pos != -1:
+        start_idx = bracket_pos
+    elif brace_pos != -1:
+        start_idx = brace_pos
+
+    if start_idx != -1:
+        end_bracket = text.rfind("]")
+        end_brace = text.rfind("}")
+        end_idx = max(end_bracket, end_brace)
+        if end_idx > start_idx:
+            return text[start_idx : end_idx + 1].strip()
+
     return text
+
 
 
 def _get_candidate_models(primary_model: str) -> List[str]:
@@ -135,7 +156,7 @@ def generate_json(
                     config=config,
                 )
                 raw_text = response.text or ""
-                cleaned = _strip_json_fences(raw_text)
+                cleaned = _extract_json_substring(raw_text)
                 parsed = json.loads(cleaned)
                 return parsed
             except (json.JSONDecodeError, ValueError) as parse_err:

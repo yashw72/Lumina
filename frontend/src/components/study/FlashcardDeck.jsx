@@ -260,16 +260,22 @@ export default function FlashcardDeck({
             setIsFlipped(!isFlipped);
           }
         }}
-        className="relative h-80 sm:h-96 w-full cursor-pointer select-none [perspective:1200px] focus:outline-none focus:ring-4 focus:ring-lilac-400/30 rounded-card"
+        className="relative h-80 sm:h-96 w-full cursor-pointer select-none card-perspective focus:outline-none focus:ring-4 focus:ring-lilac-400/30 rounded-card"
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <motion.div
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full h-full [transform-style:preserve-3d] rounded-card"
+          style={{ transformStyle: 'preserve-3d', WebkitTransformStyle: 'preserve-3d' }}
+          className="relative w-full h-full card-preserve-3d rounded-card"
         >
           {/* Front Side: Lilac Gradient Card (Question) */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] bg-gradient-to-br from-lilac-100 via-white to-lilac-200/70 dark:from-ink-soft dark:to-lilac-950/40 border-2 border-lilac-300 dark:border-white/10 rounded-card p-6 sm:p-8 flex flex-col justify-between shadow-card hover:shadow-card-hover transition-shadow">
+          <div
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+            className={`absolute inset-0 w-full h-full card-backface-hidden bg-gradient-to-br from-lilac-100 via-white to-lilac-200/70 dark:from-ink-soft dark:to-lilac-950/40 border-2 border-lilac-300 dark:border-white/10 rounded-card p-6 sm:p-8 flex flex-col justify-between shadow-card hover:shadow-card-hover transition-shadow ${
+              isFlipped ? 'pointer-events-none' : 'z-10'
+            }`}
+          >
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span className="flex items-center gap-1.5 text-lilac-700 dark:text-lilac-300">
                 <HelpCircle className="w-4 h-4" />
@@ -291,7 +297,17 @@ export default function FlashcardDeck({
           </div>
 
           {/* Back Side: Ink Dark Card (Answer) */}
-          <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] bg-ink dark:bg-[#121217] text-white border-2 border-lilac-500/50 dark:border-white/20 rounded-card p-6 sm:p-8 flex flex-col justify-between shadow-2xl">
+          <div
+            style={{
+              transform: 'rotateY(180deg)',
+              WebkitTransform: 'rotateY(180deg)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+            className={`absolute inset-0 w-full h-full card-back-side bg-ink dark:bg-[#121217] text-white border-2 border-lilac-500/50 dark:border-white/20 rounded-card p-6 sm:p-8 flex flex-col justify-between shadow-2xl ${
+              !isFlipped ? 'pointer-events-none' : 'z-10'
+            }`}
+          >
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="flex items-center gap-1.5 text-emerald-400">
                 <CheckCircle2 className="w-4 h-4" />

@@ -65,3 +65,29 @@ def test_chat_with_relevant_chunks(monkeypatch):
         assert data["sources"][0]["document_id"] == 1
         assert data["sources"][0]["page"] == 3
         assert data["sources"][0]["score"] == 0.88
+
+
+def test_chat_incomplete_prompt_handling(monkeypatch):
+    """Verifies that vague/incomplete prompts like 'Explain' or incomplete diagram prompts prompt for details without hallucinating."""
+    with TestClient(app) as client:
+        # 1. Bare "Explain"
+        response = client.post(
+            "/api/chat",
+            json={"question": "Explain", "session_id": None},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "please specify what concept or topic" in data["answer"].lower()
+        assert data["sources"] == []
+        assert data["image_url"] is None
+
+        # 2. Incomplete diagram prompt prefix
+        response2 = client.post(
+            "/api/chat",
+            json={"question": "Draw a clear educational diagram illustrating", "session_id": None},
+        )
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert "please specify what concept or topic" in data2["answer"].lower()
+        assert data2["image_url"] is None
+

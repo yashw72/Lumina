@@ -7,9 +7,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
 from app.core.config import get_settings
 from app.core.logging import setup_logging
-from app.db.database import engine, Base
+from app.db.database import engine, Base, ensure_db_schema
 import app.db.models  # noqa: F401
 from app.services.llm import LLMError
 from app.services.embeddings import get_embedding_model
@@ -37,13 +38,15 @@ async def lifespan(app: FastAPI):
     # Ensure data directories exist on startup
     upload_path = Path(settings.UPLOAD_DIR)
     chroma_path = Path(settings.CHROMA_DIR)
+    images_path = Path(settings.IMAGES_DIR)
     upload_path.mkdir(parents=True, exist_ok=True)
     chroma_path.mkdir(parents=True, exist_ok=True)
-    logger.info("Ensured storage directories exist: %s, %s", upload_path, chroma_path)
+    images_path.mkdir(parents=True, exist_ok=True)
+    logger.info("Ensured storage directories exist: %s, %s, %s", upload_path, chroma_path, images_path)
 
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables verified/created successfully.")
+    # Create and migrate database tables
+    ensure_db_schema()
+    logger.info("Database tables and columns verified successfully.")
 
     # Warm up embedding model in background thread
     threading.Thread(target=_warmup_embedding_model, daemon=True).start()
@@ -121,3 +124,7 @@ app.include_router(health_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(study_router, prefix="/api")
+
+# Static route for AI-generated study diagrams
+Path(settings.IMAGES_DIR).mkdir(parents=True, exist_ok=True)
+app.mount("/api/images", StaticFiles(directory=settings.IMAGES_DIR, check_dir=False), name="images")

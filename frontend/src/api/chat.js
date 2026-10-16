@@ -9,11 +9,12 @@ import { mockApi } from './mock.js';
  * @param {string|null} [params.sessionId]
  * @returns {Promise<{session_id: string, answer: string, sources: Array<{document_id: number, filename: string, page: number, snippet: string, score: number}>}>}
  */
-export async function sendMessage({ question, documentIds = [], sessionId = null }) {
+export async function sendMessage({ question, documentIds = [], sessionId = null, isImage = false }) {
   const payload = {
     question: question?.trim(),
     document_ids: documentIds && documentIds.length > 0 ? documentIds : [],
     session_id: sessionId || null,
+    is_image: isImage,
   };
 
   if (isMockEnabled()) {
@@ -21,11 +22,36 @@ export async function sendMessage({ question, documentIds = [], sessionId = null
       question: payload.question,
       document_ids: payload.document_ids,
       session_id: payload.session_id,
+      is_image: isImage,
     });
   }
 
   const response = await apiClient.post('/chat', payload, {
-    timeout: 60000, // 60s for LLM retrieval and generation
+    timeout: 60000, // 60s for LLM retrieval and image/text generation
+  });
+  return response.data;
+}
+
+/**
+ * Generate an educational concept diagram / image
+ * @param {Object} params
+ * @param {string} params.prompt
+ * @param {Array<number>} [params.documentIds]
+ * @param {string|null} [params.sessionId]
+ */
+export async function generateImage({ prompt, documentIds = [], sessionId = null }) {
+  const payload = {
+    prompt: prompt?.trim(),
+    document_ids: documentIds && documentIds.length > 0 ? documentIds : [],
+    session_id: sessionId || null,
+  };
+
+  if (isMockEnabled()) {
+    return mockApi.generateImage(payload);
+  }
+
+  const response = await apiClient.post('/chat/image', payload, {
+    timeout: 60000,
   });
   return response.data;
 }

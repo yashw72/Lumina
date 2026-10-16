@@ -12,6 +12,10 @@ export function useChat(selectedDocIds = []) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (parsed.sessionId === 'session-sample-1') {
+          localStorage.removeItem(STORAGE_KEY);
+          return null;
+        }
         return parsed.sessionId || null;
       }
     } catch (_) {}
@@ -29,7 +33,15 @@ export function useChat(selectedDocIds = []) {
       try {
         const historyData = await getHistory(sessionId);
         if (isMounted && historyData && Array.isArray(historyData.messages)) {
-          setMessages(historyData.messages);
+          setMessages(
+            historyData.messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+              sources: m.sources || [],
+              image_url: m.image_url || null,
+              created_at: m.created_at || new Date().toISOString(),
+            }))
+          );
         }
       } catch (err) {
         // If session not found or 404, silently reset session
@@ -68,9 +80,11 @@ export function useChat(selectedDocIds = []) {
   };
 
   const send = useCallback(
-    async (question) => {
+    async (question, options = {}) => {
       const cleanQuestion = question?.trim();
       if (!cleanQuestion || sending) return false;
+
+      const isImage = Boolean(options.isImage);
 
       // Add user message immediately
       const userMessage = {
@@ -88,6 +102,7 @@ export function useChat(selectedDocIds = []) {
           question: cleanQuestion,
           documentIds: selectedDocIds,
           sessionId: sessionId,
+          isImage: isImage,
         });
 
         const newSessionId = response.session_id || sessionId;
@@ -98,6 +113,7 @@ export function useChat(selectedDocIds = []) {
           role: 'assistant',
           content: response.answer,
           sources: response.sources || [],
+          image_url: response.image_url || null,
           created_at: new Date().toISOString(),
         };
 

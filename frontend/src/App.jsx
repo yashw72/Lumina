@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/layout/Layout';
@@ -42,6 +42,14 @@ function AnimatedRoutes() {
               </PageTransition>
             }
           />
+          {/* Study tool aliases and direct shortcuts */}
+          <Route path="/flashcards" element={<Navigate to="/study?tab=flashcards" replace />} />
+          <Route path="/summary" element={<Navigate to="/study?tab=summary" replace />} />
+          <Route path="/quiz" element={<Navigate to="/study?tab=quiz" replace />} />
+          <Route path="/study/flashcards" element={<Navigate to="/study?tab=flashcards" replace />} />
+          <Route path="/study/quiz" element={<Navigate to="/study?tab=quiz" replace />} />
+          <Route path="/study/summary" element={<Navigate to="/study?tab=summary" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </AnimatePresence>
