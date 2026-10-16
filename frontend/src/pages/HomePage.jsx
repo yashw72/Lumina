@@ -241,13 +241,17 @@ export default function HomePage() {
                 {/* 3 rows with sliding interaction */}
                 <div className="space-y-2.5">
                   {[
-                    { label: 'Executive Summaries', icon: FileText },
-                    { label: '3D Flip Flashcards', icon: Layers },
-                    { label: 'Interactive Quizzes', icon: GraduationCap },
+                    { label: 'Executive Summaries', icon: FileText, tab: 'summary' },
+                    { label: '3D Flip Flashcards', icon: Layers, tab: 'flashcards' },
+                    { label: 'Interactive Quizzes', icon: GraduationCap, tab: 'quiz' },
                   ].map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-white/15 backdrop-blur-xs transition-transform duration-200 group-hover:translate-x-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/study?tab=${item.tab}`);
+                      }}
+                      className="flex items-center justify-between p-3 rounded-2xl bg-white/15 backdrop-blur-xs transition-all duration-200 group-hover:translate-x-1 hover:bg-white/25 cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5 text-xs font-semibold text-white">
                         <item.icon className="w-4 h-4" />

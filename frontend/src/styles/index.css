@@ -58,6 +58,26 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* 3D Flip Card Utilities */
+.card-perspective {
+  perspective: 1200px;
+  -webkit-perspective: 1200px;
+}
+.card-preserve-3d {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+.card-backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.card-back-side {
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 /* Skeleton shimmer */
 .shimmer {
   background: linear-gradient(

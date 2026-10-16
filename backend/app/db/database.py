@@ -24,3 +24,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_db_schema():
+    """Creates tables and ensures migrations for newly added columns."""
+    from sqlalchemy import text
+    Base.metadata.create_all(bind=engine)
+    if settings.DATABASE_URL.startswith("sqlite"):
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE chat_messages ADD COLUMN image_url VARCHAR(1024)"))
+                conn.commit()
+            except Exception:
+                pass  # column already exists or table freshly created
+

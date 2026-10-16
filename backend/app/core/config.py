@@ -25,6 +25,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    IMAGES_DIR: str = "data/generated_images"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Union[str, List[str]]) -> List[str]:
@@ -58,7 +60,7 @@ class Settings(BaseSettings):
                     return f"sqlite:///{resolved_path.as_posix()}"
         return value
 
-    @field_validator("UPLOAD_DIR", "CHROMA_DIR", mode="after")
+    @field_validator("UPLOAD_DIR", "CHROMA_DIR", "IMAGES_DIR", mode="after")
     @classmethod
     def resolve_paths(cls, value: str) -> str:
         p = Path(value)

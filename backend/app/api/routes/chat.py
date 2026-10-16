@@ -6,6 +6,7 @@ from app.db.database import get_db
 from app.db.models import ChatSession, ChatMessage, Document
 from app.schemas.chat import (
     ChatRequest,
+    ImageChatRequest,
     ChatResponse,
     HistoryResponse,
     ChatMessageHistory,
@@ -49,6 +50,43 @@ def chat_with_documents(
         question=clean_question,
         document_ids=payload.document_ids,
         session_id=payload.session_id,
+        is_image=bool(payload.is_image),
+    )
+
+
+@router.post("/image", response_model=ChatResponse)
+def generate_chat_image(
+    payload: ImageChatRequest,
+    db: Session = Depends(get_db),
+):
+    """Generates an educational concept diagram / image with RAG context."""
+    clean_prompt = payload.prompt.strip()
+    if not clean_prompt:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Prompt cannot be empty or only whitespace.",
+        )
+
+    if payload.document_ids:
+        existing_ids = {
+            row[0]
+            for row in db.query(Document.id)
+            .filter(Document.id.in_(payload.document_ids))
+            .all()
+        }
+        missing_ids = set(payload.document_ids) - existing_ids
+        if missing_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document ID(s) not found: {sorted(list(missing_ids))}",
+            )
+
+    return answer_question(
+        db=db,
+        question=clean_prompt,
+        document_ids=payload.document_ids,
+        session_id=payload.session_id,
+        is_image=True,
     )
 
 
@@ -87,6 +125,7 @@ def get_chat_history(
                 role=msg.role,
                 content=msg.content,
                 sources=sources_list,
+                image_url=msg.image_url,
                 created_at=msg.created_at,
             )
         )
