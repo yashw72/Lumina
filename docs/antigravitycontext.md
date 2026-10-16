@@ -42,6 +42,7 @@ Rules: Yash does not edit `frontend/`. Kaustubh does not edit `backend/`. Shared
 - **ChromaDB** (persistent local vector store)
 - **sentence-transformers** `all-MiniLM-L6-v2` (free, local embeddings)
 - **Google Gemini API** via `google-genai` SDK (LLM). Model name comes from env `LLM_MODEL`. LLM access is wrapped in `services/llm.py` so the provider can be swapped.
+- `argon2-cffi` (password hashing), `PyJWT` (tokens), and `email-validator`
 - `pypdf` (PDF), `python-docx` (DOCX)
 - `pydantic-settings` (config), `pytest` (tests)
 
@@ -49,6 +50,7 @@ Rules: Yash does not edit `frontend/`. Kaustubh does not edit `backend/`. Shared
 - **React 18 + Vite** (JavaScript)
 - **Tailwind CSS**
 - `react-router-dom`, `axios`, `react-hot-toast`, `lucide-react`, `react-markdown`
+- `framer-motion`, `@fontsource-variable/plus-jakarta-sans`
 
 ### Tooling
 - Git + GitHub (feature branches + PRs), Conventional Commits
@@ -78,21 +80,26 @@ documentor-ai/
 │   │   ├── main.py               # FastAPI app, CORS, router registration
 │   │   ├── core/
 │   │   │   ├── config.py         # Settings from env
-│   │   │   └── logging.py
+│   │   │   ├── logging.py
+│   │   │   └── security.py       # Argon2 password hashing and JWT helpers
 │   │   ├── db/
 │   │   │   ├── database.py       # engine, SessionLocal, Base, get_db
-│   │   │   └── models.py         # Document, ChatSession, ChatMessage
+│   │   │   └── models.py         # User, Document, ChatSession, ChatMessage
 │   │   ├── schemas/              # Pydantic request/response models
+│   │   │   ├── auth.py           # Signup, Login, Token, User schemas
 │   │   │   ├── document.py
 │   │   │   ├── chat.py
 │   │   │   └── study.py
 │   │   ├── api/
+│   │   │   ├── deps.py           # get_current_user dependency
 │   │   │   └── routes/
+│   │   │       ├── auth.py       # /auth/signup, /auth/login, /auth/me
 │   │   │       ├── health.py
 │   │   │       ├── documents.py
 │   │   │       ├── chat.py
 │   │   │       └── study.py
 │   │   └── services/
+│   │       ├── rate_limit.py     # In-memory login rate limiter
 │   │       ├── loaders.py        # PDF/DOCX/TXT/MD -> list of {page, text}
 │   │       ├── chunker.py        # text -> chunks with metadata
 │   │       ├── embeddings.py     # sentence-transformers wrapper
@@ -105,23 +112,29 @@ documentor-ai/
 │   │   ├── try_llm.py
 │   │   └── smoke_test.py
 │   └── tests/
+│       ├── test_auth.py          # Auth tests (signup, login, JWT, rate limit)
+│       └── test_isolation.py     # Per-user isolation & route protection tests
 ├── frontend/
 │   ├── package.json
 │   ├── .env.example
-│   ├── Dockerfile
-│   ├── nginx.conf
+│   ├── design/
+│   │   └── reference.webp        # Visual design reference
+│   ├── Dockerfile                # Frontend production container
+│   ├── nginx.conf                # Nginx configuration
 │   ├── index.html
 │   └── src/
 │       ├── main.jsx
 │       ├── App.jsx               # router
-│       ├── api/                  # client.js, documents.js, chat.js, study.js, mock.js
+│       ├── api/                  # auth.js, client.js, documents.js, chat.js, study.js, mock.js
+│       ├── context/              # AuthContext.jsx
 │       ├── components/
-│       │   ├── layout/           # Navbar.jsx, Layout.jsx
+│       │   ├── auth/             # ProtectedRoute.jsx, PublicRoute.jsx, PasswordInput.jsx, PasswordStrength.jsx
+│       │   ├── layout/           # Navbar.jsx, Layout.jsx, Footer.jsx, UserMenu.jsx
 │       │   ├── documents/        # UploadBox.jsx, DocumentList.jsx, DocumentCard.jsx
-│       │   ├── chat/             # ChatWindow.jsx, MessageBubble.jsx, ChatInput.jsx, SourceCard.jsx
+│       │   ├── chat/             # ChatWindow.jsx, MessageBubble.jsx, ChatInput.jsx, SourceCard.jsx, ChatPreviewCard.jsx
 │       │   ├── study/            # SummaryPanel.jsx, FlashcardDeck.jsx, QuizPanel.jsx
-│       │   └── common/           # Button.jsx, Loader.jsx, EmptyState.jsx, BackendBanner.jsx
-│       ├── pages/                # HomePage.jsx, ChatPage.jsx, StudyPage.jsx
+│       │   └── common/           # Button.jsx, IconButton.jsx, Card.jsx, Badge.jsx, Skeleton.jsx, Loader.jsx, EmptyState.jsx, Reveal.jsx, CountUp.jsx, ConfirmDialog.jsx, PageTransition.jsx, SectionHeading.jsx, BackendBanner.jsx
+│       ├── pages/                # HomePage.jsx, ChatPage.jsx, StudyPage.jsx, LoginPage.jsx, SignupPage.jsx
 │       ├── hooks/                # useDocuments.js, useChat.js, useBackendStatus.js
 │       └── styles/index.css
 └── data/                         # gitignored: uploads/ and chroma/ created at runtime
@@ -144,6 +157,10 @@ CHUNK_SIZE=800
 CHUNK_OVERLAP=150
 TOP_K=5
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+SECRET_KEY=change-me-to-a-long-random-string-at-least-32-chars
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+LOGIN_MAX_ATTEMPTS=5
+LOGIN_WINDOW_MINUTES=15
 ```
 
 **frontend/.env.example**
@@ -162,6 +179,48 @@ Base URL: `http://localhost:8000/api`. All responses are JSON. Errors use `{"det
 
 ### Health
 `GET /health` -> `{"status": "ok"}`
+
+### Authentication
+- `POST /auth/signup`
+  Request body: `{"name": "Yash", "email": "a@b.com", "password": "Passw0rd!"}`
+  Response `201`:
+  ```json
+  {
+    "access_token": "...",
+    "token_type": "bearer",
+    "user": {
+      "id": 1,
+      "name": "Yash",
+      "email": "a@b.com",
+      "created_at": "2026-10-13T14:30:00Z"
+    }
+  }
+  ```
+- `POST /auth/login`
+  Request body: `{"email": "a@b.com", "password": "Passw0rd!"}`
+  Response `200`: same response shape as signup.
+- `GET /auth/me` (requires token) -> returns current user object:
+  ```json
+  {
+    "id": 1,
+    "name": "Yash",
+    "email": "a@b.com",
+    "created_at": "2026-10-13T14:30:00Z"
+  }
+  ```
+- **Errors**:
+  - `401 Unauthorized`: `{"detail": "Invalid email or password"}` (or `{"detail": "Not authenticated"}`)
+  - `409 Conflict`: `{"detail": "An account with this email already exists"}`
+  - `422 Unprocessable Entity`: validation errors
+  - `429 Too Many Requests`: `{"detail": "Too many failed attempts. Try again later."}`
+
+**Auth & Data Isolation Rules:**
+- Every endpoint except `GET /health`, `POST /auth/signup` and `POST /auth/login` requires the header `Authorization: Bearer <access_token>`; otherwise the API returns `401 {"detail": "Not authenticated"}`.
+- Data is private per user: another user's document or session returns `404`.
+- **Validation rules**:
+  - `name`: 2–60 characters (trimmed).
+  - `email`: valid format, stored lowercase, unique.
+  - `password`: 8–72 characters with at least one letter and one number.
 
 ### Documents
 - `POST /documents/upload` — multipart/form-data, field `file`. Allowed: `.pdf .docx .txt .md`, max `MAX_FILE_MB`.
@@ -208,11 +267,15 @@ Base URL: `http://localhost:8000/api`. All responses are JSON. Errors use `{"det
 - Routes stay thin; business logic lives in `services/`.
 - Use type hints and Pydantic schemas for every request/response.
 - Raise `HTTPException` with clear messages; log errors with the `logging` module.
+- Never log passwords or tokens.
 - The LLM prompt for chat must instruct: "Answer ONLY from the provided context. If the answer is not in the context, say you could not find it in the uploaded documents."
 - When asking the LLM for flashcards/quiz, require JSON-only output and validate/parse it safely.
 
 **Frontend**
+- Follow `docs/design-system.md` for every visual decision.
+- Use `framer-motion` for animation and always respect `prefers-reduced-motion`.
 - Functional components + hooks only. All HTTP calls live in `src/api/`, never inside components directly.
+- Frontend token handling lives only in `src/api/client.js` and `src/context/AuthContext.jsx`.
 - Every async action needs loading, error (toast) and empty states.
 - Tailwind utility classes only; keep components small and reusable.
 
@@ -251,7 +314,7 @@ Base URL: `http://localhost:8000/api`. All responses are JSON. Errors use `{"det
 
 ## 11. Known Limitations
 
-1. **Authentication & Multi-tenancy**: Designed as a single-user / local learning assistant without user accounts or login.
+1. **Authentication & Multi-tenancy**: Uses email/password accounts, Argon2 hashing, 24-hour JWT access tokens, and per-user data isolation. Password reset and email verification are not implemented.
 2. **Vector Store Sharing**: Documents are indexed into a single shared ChromaDB collection partitioned by `document_id` metadata.
 3. **Scanned Documents**: PDFs must have selectable, extractable text layers; scanned image-only PDFs require external OCR before ingestion.
 4. **File Size Limit**: Single document upload capped at 20MB (`MAX_FILE_MB`) for memory and performance considerations.
