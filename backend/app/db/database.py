@@ -28,13 +28,30 @@ def get_db():
 
 def ensure_db_schema():
     """Creates tables and ensures migrations for newly added columns."""
+    import logging
     from sqlalchemy import text
+    logger = logging.getLogger("documentor.database")
+
     Base.metadata.create_all(bind=engine)
     if settings.DATABASE_URL.startswith("sqlite"):
         with engine.connect() as conn:
             try:
+                conn.execute(text("ALTER TABLE documents ADD COLUMN user_id INTEGER"))
+                conn.commit()
+                logger.info("Migrated database: added user_id column to documents table")
+            except Exception:
+                pass
+
+            try:
+                conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN user_id INTEGER"))
+                conn.commit()
+                logger.info("Migrated database: added user_id column to chat_sessions table")
+            except Exception:
+                pass
+
+            try:
                 conn.execute(text("ALTER TABLE chat_messages ADD COLUMN image_url VARCHAR(1024)"))
                 conn.commit()
             except Exception:
-                pass  # column already exists or table freshly created
+                pass
 

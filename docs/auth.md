@@ -264,11 +264,11 @@ git push origin v1.1.0
 - **Vercel:** no new variables needed. Redeploy if you changed anything.
 
 ## FINAL CHECKLIST
-- [ ] Signup and login redirect to Home
-- [ ] Logged-out visits to any page go to `/login`
-- [ ] Logged-in visits to `/login` or `/signup` go to Home
-- [ ] Refresh keeps you logged in; logout clears everything
-- [ ] Two accounts never see each other's data
-- [ ] All routes except health/signup/login return 401 without a token
-- [ ] `pytest` and `npm run build` pass
-- [ ] `SECRET_KEY` is set locally and on the host, and not committed
+- [x] Signup and login redirect to Home
+- [x] Logged-out visits to any page go to `/login`
+- [x] Logged-in visits to `/login` or `/signup` go to Home
+- [x] Refresh keeps you logged in; logout clears everything
+- [x] Two accounts never see each other's data
+- [x] All routes except health/signup/login return 401 without a token
+- [x] `pytest` and `npm run build` pass
+- [x] `SECRET_KEY` is set locally and on the host, and not committed

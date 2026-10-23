@@ -20,6 +20,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { useDocuments } from '../hooks/useDocuments.js';
+import { useAuth } from '../context/AuthContext';
 import UploadBox from '../components/documents/UploadBox.jsx';
 import DocumentList from '../components/documents/DocumentList.jsx';
 import ChatPreviewCard from '../components/chat/ChatPreviewCard.jsx';
@@ -31,6 +32,8 @@ import CountUp from '../components/common/CountUp.jsx';
 import SectionHeading from '../components/common/SectionHeading.jsx';
 
 export default function HomePage() {
+  const { user } = useAuth();
+  const firstName = user?.name ? user.name.trim().split(/\s+/)[0] : 'Student';
   const { documents, loading, refresh, remove } = useDocuments();
   const carouselRef = useRef(null);
   const navigate = useNavigate();
@@ -63,7 +66,9 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-bold text-ink dark:text-white shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5 text-lilac-600 dark:text-lilac-400" />
-            <span>RAG-Powered Study Assistant</span>
+            <span>Welcome back, {firstName}</span>
+            <span className="text-slate-400 dark:text-slate-500">•</span>
+            <span className="text-lilac-700 dark:text-lilac-300">RAG-Powered Study Assistant</span>
           </motion.div>
 
           <motion.h1

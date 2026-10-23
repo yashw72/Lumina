@@ -3,6 +3,7 @@ from app.main import app
 from app.db.database import SessionLocal
 from app.db.models import Document
 from app.services import study_tools, llm
+from tests.conftest import create_test_auth_headers
 
 
 def test_flashcards_and_quiz_validation(monkeypatch):
@@ -53,22 +54,6 @@ def test_flashcards_and_quiz_validation(monkeypatch):
 
 
 def test_study_api_endpoints(monkeypatch):
-    # Create a ready document in DB
-    db = SessionLocal()
-    doc = Document(
-        filename="notes.txt",
-        file_type="txt",
-        stored_path="dummy.txt",
-        page_count=1,
-        chunk_count=1,
-        status="ready",
-    )
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
-    doc_id = doc.id
-    db.close()
-
     monkeypatch.setattr(study_tools, "get_document_text", lambda did: "Study notes content.")
     monkeypatch.setattr(llm, "generate", lambda *args, **kwargs: "# Summary\n- Key concepts")
     monkeypatch.setattr(
@@ -77,25 +62,44 @@ def test_study_api_endpoints(monkeypatch):
         lambda *args, **kwargs: [{"question": "Q1", "answer": "A1"}],
     )
 
-    try:
-        with TestClient(app) as client:
+    with TestClient(app) as client:
+        user_id, headers = create_test_auth_headers(client, "study")
+
+        # Create a ready document in DB owned by this user
+        db = SessionLocal()
+        doc = Document(
+            user_id=user_id,
+            filename="notes.txt",
+            file_type="txt",
+            stored_path="dummy.txt",
+            page_count=1,
+            chunk_count=1,
+            status="ready",
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+        doc_id = doc.id
+        db.close()
+
+        try:
             # Summary
-            res = client.post("/api/study/summary", json={"document_id": doc_id})
+            res = client.post("/api/study/summary", headers=headers, json={"document_id": doc_id})
             assert res.status_code == 200
             assert "# Summary" in res.json()["summary"]
 
             # Flashcards
-            res = client.post("/api/study/flashcards", json={"document_id": doc_id, "count": 2})
+            res = client.post("/api/study/flashcards", headers=headers, json={"document_id": doc_id, "count": 2})
             assert res.status_code == 200
             assert len(res.json()["flashcards"]) == 1
 
             # 404 for missing document
-            res_404 = client.post("/api/study/summary", json={"document_id": 99999})
+            res_404 = client.post("/api/study/summary", headers=headers, json={"document_id": 99999})
             assert res_404.status_code == 404
-    finally:
-        db = SessionLocal()
-        d = db.query(Document).filter(Document.id == doc_id).first()
-        if d:
-            db.delete(d)
-            db.commit()
-        db.close()
+        finally:
+            db = SessionLocal()
+            d = db.query(Document).filter(Document.id == doc_id).first()
+            if d:
+                db.delete(d)
+                db.commit()
+            db.close()

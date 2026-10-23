@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import ChatSession, ChatMessage, Document
+from app.db.models import ChatSession, ChatMessage, Document, User
 from app.schemas.chat import (
     ChatRequest,
     ImageChatRequest,
@@ -13,14 +13,20 @@ from app.schemas.chat import (
     Source,
 )
 from app.services.rag import answer_question
+from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/chat", tags=["Chat"])
+router = APIRouter(
+    prefix="/chat",
+    tags=["Chat"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.post("", response_model=ChatResponse)
 def chat_with_documents(
     payload: ChatRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Answers a user question grounded strictly in uploaded documents."""
     clean_question = payload.question.strip()
@@ -30,27 +36,13 @@ def chat_with_documents(
             detail="Question cannot be empty or only whitespace.",
         )
 
-    # Validate that document_ids exist if specified
-    if payload.document_ids:
-        existing_ids = {
-            row[0]
-            for row in db.query(Document.id)
-            .filter(Document.id.in_(payload.document_ids))
-            .all()
-        }
-        missing_ids = set(payload.document_ids) - existing_ids
-        if missing_ids:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Document ID(s) not found: {sorted(list(missing_ids))}",
-            )
-
     return answer_question(
         db=db,
         question=clean_question,
         document_ids=payload.document_ids,
         session_id=payload.session_id,
         is_image=bool(payload.is_image),
+        user_id=current_user.id,
     )
 
 
@@ -58,6 +50,7 @@ def chat_with_documents(
 def generate_chat_image(
     payload: ImageChatRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Generates an educational concept diagram / image with RAG context."""
     clean_prompt = payload.prompt.strip()
@@ -67,26 +60,13 @@ def generate_chat_image(
             detail="Prompt cannot be empty or only whitespace.",
         )
 
-    if payload.document_ids:
-        existing_ids = {
-            row[0]
-            for row in db.query(Document.id)
-            .filter(Document.id.in_(payload.document_ids))
-            .all()
-        }
-        missing_ids = set(payload.document_ids) - existing_ids
-        if missing_ids:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Document ID(s) not found: {sorted(list(missing_ids))}",
-            )
-
     return answer_question(
         db=db,
         question=clean_prompt,
         document_ids=payload.document_ids,
         session_id=payload.session_id,
         is_image=True,
+        user_id=current_user.id,
     )
 
 
@@ -94,9 +74,14 @@ def generate_chat_image(
 def get_chat_history(
     session_id: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Retrieves conversation history and sources for a given chat session."""
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    """Retrieves conversation history and sources for a given chat session owned by current user."""
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+        .first()
+    )
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

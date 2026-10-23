@@ -3,10 +3,11 @@ import logging
 import re
 import uuid
 from typing import List, Dict, Any, Optional
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import ChatSession, ChatMessage
+from app.db.models import ChatSession, ChatMessage, Document
 from app.services import embeddings, vector_store, llm, image_gen
 
 logger = logging.getLogger("documentor.rag")
@@ -109,24 +110,33 @@ def answer_question(
     document_ids: Optional[List[int]] = None,
     session_id: Optional[str] = None,
     is_image: bool = False,
+    user_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     RAG QA pipeline:
-    1. Manage or create chat session and record user query.
-    2. Check for short follow-up questions (< 6 words) and enrich retrieval query with previous question.
-    3. Guard against incomplete bare prompts (e.g. 'Explain' or incomplete diagram prompts).
-    4. Embed retrieval query and search vector store for top-K chunks.
-    5. Guardrail against low-confidence chunks (< 0.25).
+    1. Manage or create chat session and verify session ownership per user.
+    2. Resolve allowed documents for the user (404 if not owned; friendly fallback if none uploaded).
+    3. Check for short follow-up questions and enrich retrieval query.
+    4. Guard against incomplete bare prompts.
+    5. Search vector store with explicit document_ids filter.
     6. Construct context-grounded prompt and query LLM.
     """
     settings = get_settings()
 
-    # 1. Manage ChatSession
+    # 1. Manage ChatSession and enforce ownership
     session = None
     if session_id:
         session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if session and user_id is not None and session.user_id is not None and session.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session with ID '{session_id}' not found.",
+            )
     if not session:
-        session = ChatSession(id=session_id if session_id else str(uuid.uuid4()))
+        session = ChatSession(
+            id=session_id if session_id else str(uuid.uuid4()),
+            user_id=user_id,
+        )
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -139,9 +149,6 @@ def answer_question(
         sources_json=None,
     )
     db.add(user_msg)
-    db.commit()
-    db.refresh(user_msg)
-
     # 2. Check for follow-up question
     retrieval_query = question
     words = question.strip().split()
@@ -184,12 +191,46 @@ def answer_question(
             "image_url": None,
         }
 
-    # 3. Vector search
+    # 3. Resolve allowed document IDs for this user
+    user_ready_query = db.query(Document.id).filter(Document.status == "ready")
+    if user_id is not None:
+        user_ready_query = user_ready_query.filter(Document.user_id == user_id)
+    user_ready_ids = [r[0] for r in user_ready_query.all()]
+
+    if document_ids:
+        missing_ids = set(document_ids) - set(user_ready_ids)
+        if missing_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found.",
+            )
+        resolved_doc_ids = list(document_ids)
+    else:
+        if not user_ready_ids:
+            friendly_answer = "I could not find this in your uploaded documents. Upload a document first."
+            assistant_msg = ChatMessage(
+                session_id=session.id,
+                role="assistant",
+                content=friendly_answer,
+                sources_json=json.dumps([]),
+                image_url=None,
+            )
+            db.add(assistant_msg)
+            db.commit()
+            return {
+                "session_id": session.id,
+                "answer": friendly_answer,
+                "sources": [],
+                "image_url": None,
+            }
+        resolved_doc_ids = user_ready_ids
+
+    # 4. Vector search (always pass explicit resolved document IDs)
     q_emb = embeddings.embed_query(retrieval_query)
     chunks = vector_store.query(
         query_embedding=q_emb,
         top_k=settings.TOP_K,
-        document_ids=document_ids,
+        document_ids=resolved_doc_ids,
     )
 
     image_mode = is_image_request(question, is_image)

@@ -1,7 +1,16 @@
 import axios from 'axios';
+import { tokenStore } from '../lib/tokenStore';
 
 const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const baseURL = rawBaseUrl.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl.replace(/\/$/, '')}/api`;
+
+// Handlers for session expiration events
+let onUnauthorizedCallback = null;
+let isHandlingUnauthorized = false;
+
+export const setUnauthorizedHandler = (callback) => {
+  onUnauthorizedCallback = callback;
+};
 
 export const apiClient = axios.create({
   baseURL,
@@ -11,7 +20,20 @@ export const apiClient = axios.create({
   },
 });
 
-// Response interceptor to normalize error handling
+// Request interceptor to attach Bearer token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = tokenStore.getToken();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor to normalize error handling and handle session expiry
 apiClient.interceptors.response.use(
   (response) => {
     // Dev-only contract guard
@@ -32,6 +54,23 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     const customError = new Error();
+    const status = error.response ? error.response.status : 0;
+    const url = error.config?.url || '';
+
+    // Handle 401 Unauthorized for protected endpoints (exclude login & signup)
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/signup');
+    if (status === 401 && !isAuthEndpoint) {
+      if (!isHandlingUnauthorized) {
+        isHandlingUnauthorized = true;
+        tokenStore.clearToken();
+        if (onUnauthorizedCallback) {
+          onUnauthorizedCallback();
+        }
+        setTimeout(() => {
+          isHandlingUnauthorized = false;
+        }, 1500);
+      }
+    }
 
     if (error.code === 'ECONNABORTED' || (error.message && error.message.includes('timeout'))) {
       customError.message = 'This is taking longer than usual, please try again.';

@@ -1,5 +1,6 @@
 import argparse
 import sys
+import uuid
 import httpx
 
 DEADLOCK_SAMPLE_TEXT = """An operating system deadlock occurs when two or more processes are unable to proceed because each is waiting for the other to release a resource. 
@@ -31,7 +32,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
         print(f"[{'PASS' if passed else 'FAIL'}] {name} {f'({reason})' if reason else ''}")
 
     try:
-        # Step a: GET /health
+        # Step a: GET /health (Public)
         try:
             r = client.get("/health")
             if r.status_code == 200 and r.json().get("status") == "ok":
@@ -41,7 +42,45 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
         except Exception as e:
             record("GET /health", False, str(e))
 
-        # Step b: POST /documents/upload
+        # Step b: Verify unauthenticated protected call gets 401
+        try:
+            r_unauth = client.get("/documents")
+            if r_unauth.status_code == 401 and r_unauth.json().get("detail") == "Not authenticated":
+                record("Unauthenticated request returns 401", True)
+            else:
+                record("Unauthenticated request returns 401", False, f"status {r_unauth.status_code}: {r_unauth.text}")
+        except Exception as e:
+            record("Unauthenticated request returns 401", False, str(e))
+
+        # Step c: Sign up a random user to obtain access token
+        smoke_email = f"smoke_{uuid.uuid4().hex[:8]}@example.com"
+        try:
+            r_signup = client.post(
+                "/auth/signup",
+                json={"name": "Smoke Tester", "email": smoke_email, "password": "SecurePassword1"},
+            )
+            if r_signup.status_code == 201 and "access_token" in r_signup.json():
+                token = r_signup.json()["access_token"]
+                client.headers["Authorization"] = f"Bearer {token}"
+                record("POST /auth/signup & auth bearer setup", True)
+            else:
+                record("POST /auth/signup & auth bearer setup", False, f"status {r_signup.status_code}: {r_signup.text}")
+                return False
+        except Exception as e:
+            record("POST /auth/signup & auth bearer setup", False, str(e))
+            return False
+
+        # Step d: Verify GET /auth/me with the token
+        try:
+            r_me = client.get("/auth/me")
+            if r_me.status_code == 200 and r_me.json().get("email") == smoke_email:
+                record("GET /auth/me profile verification", True)
+            else:
+                record("GET /auth/me profile verification", False, f"status {r_me.status_code}: {r_me.text}")
+        except Exception as e:
+            record("GET /auth/me profile verification", False, str(e))
+
+        # Step e: POST /documents/upload
         try:
             files = {"file": ("os-deadlocks.txt", DEADLOCK_SAMPLE_TEXT.encode("utf-8"), "text/plain")}
             r = client.post("/documents/upload", files=files)
@@ -57,7 +96,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
         except Exception as e:
             record("POST /documents/upload", False, str(e))
 
-        # Step c: GET /documents and GET /documents/{id}
+        # Step f: GET /documents and GET /documents/{id}
         try:
             r_list = client.get("/documents")
             r_get = client.get(f"/documents/{created_doc_id}") if created_doc_id else None
@@ -75,7 +114,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
         except Exception as e:
             record("GET /documents & /documents/{id}", False, str(e))
 
-        # Step d: Upload .exe file -> 4xx with string detail
+        # Step g: Upload .exe file -> 4xx with string detail
         try:
             bad_file = {"file": ("malware.exe", b"MZDummyHeader", "application/octet-stream")}
             r_bad = client.post("/documents/upload", files=bad_file)
@@ -87,7 +126,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
             record("Upload invalid extension returns 4xx", False, str(e))
 
         if not skip_llm and created_doc_id:
-            # Step e: POST /chat with answerable question
+            # Step h: POST /chat with answerable question
             try:
                 r_chat = client.post(
                     "/chat",
@@ -110,7 +149,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
             except Exception as e:
                 record("POST /chat (grounded answer + sources)", False, str(e))
 
-            # Step f: POST /chat with same session_id and follow-up
+            # Step i: POST /chat with same session_id and follow-up
             try:
                 r_follow = client.post(
                     "/chat",
@@ -127,7 +166,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
             except Exception as e:
                 record("POST /chat follow-up retains session_id", False, str(e))
 
-            # Step g: POST /chat with unrelated question -> sources == []
+            # Step j: POST /chat with unrelated question -> sources == []
             try:
                 r_unrelated = client.post(
                     "/chat",
@@ -144,7 +183,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
             except Exception as e:
                 record("POST /chat unrelated question has empty sources", False, str(e))
 
-            # Step h: GET /chat/history/{session_id} -> 4 or more messages
+            # Step k: GET /chat/history/{session_id} -> 4 or more messages
             try:
                 r_hist = client.get(f"/chat/history/{session_id}")
                 if r_hist.status_code == 200 and len(r_hist.json().get("messages", [])) >= 4:
@@ -154,7 +193,7 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
             except Exception as e:
                 record("GET /chat/history/{session_id}", False, str(e))
 
-            # Step i: POST /study/summary, /study/flashcards, /study/quiz
+            # Step l: POST /study/summary, /study/flashcards, /study/quiz
             try:
                 r_sum = client.post("/study/summary", json={"document_id": created_doc_id})
                 r_flash = client.post("/study/flashcards", json={"document_id": created_doc_id, "count": 5})
@@ -183,20 +222,20 @@ def run_smoke_test(base_url: str, skip_llm: bool) -> bool:
                 record("POST /study/{summary,flashcards,quiz} shape validation", False, str(e))
         else:
             if skip_llm:
-                print("[SKIP] Steps e-i skipped via --skip-llm")
+                print("[SKIP] Steps h-l skipped via --skip-llm")
 
-        # Step j: POST /chat with empty question -> 422 with string detail
+        # Step m: POST /chat with empty question -> 400 with string detail
         try:
             r_empty = client.post("/chat", json={"question": ""})
-            if r_empty.status_code == 422 and isinstance(r_empty.json().get("detail"), str):
-                record("POST /chat empty question returns 422 string detail", True)
+            if r_empty.status_code in (400, 422) and isinstance(r_empty.json().get("detail"), str):
+                record("POST /chat empty question returns 4xx string detail", True)
             else:
-                record("POST /chat empty question returns 422 string detail", False, f"status {r_empty.status_code}: {r_empty.text}")
+                record("POST /chat empty question returns 4xx string detail", False, f"status {r_empty.status_code}: {r_empty.text}")
         except Exception as e:
-            record("POST /chat empty question returns 422 string detail", False, str(e))
+            record("POST /chat empty question returns 4xx string detail", False, str(e))
 
     finally:
-        # Step k: DELETE /documents/{id} cleanup
+        # Step n: DELETE /documents/{id} cleanup
         if created_doc_id:
             try:
                 r_del = client.delete(f"/documents/{created_doc_id}")

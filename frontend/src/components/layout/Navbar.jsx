@@ -14,8 +14,11 @@ import {
 } from 'lucide-react';
 import Button from '../common/Button.jsx';
 import IconButton from '../common/IconButton.jsx';
+import UserMenu from './UserMenu.jsx';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar() {
+  const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -168,6 +171,9 @@ export default function Navbar() {
               Upload
             </Button>
 
+            {/* User Profile Dropdown Menu */}
+            <UserMenu />
+
             {/* Mobile Hamburger Button */}
             <button
               type="button"
@@ -218,6 +224,27 @@ export default function Navbar() {
                   Upload New Document
                 </Button>
               </div>
+
+              {/* Mobile User Profile & Logout section */}
+              {user && (
+                <div className="pt-3 mt-1 border-t border-black/5 dark:border-white/5 flex items-center justify-between px-2 py-1">
+                  <div className="truncate text-xs pr-2">
+                    <p className="font-bold text-ink dark:text-white truncate">{user.name}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                      navigate('/login', { replace: true });
+                    }}
+                    className="text-xs font-bold text-red-600 dark:text-red-400 hover:underline px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 shrink-0"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

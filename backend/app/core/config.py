@@ -27,6 +27,11 @@ class Settings(BaseSettings):
 
     IMAGES_DIR: str = "data/generated_images"
 
+    SECRET_KEY: str = "change-me-to-a-long-random-string-at-least-32-chars"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    LOGIN_MAX_ATTEMPTS: int = 5
+    LOGIN_WINDOW_MINUTES: int = 15
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Union[str, List[str]]) -> List[str]:
@@ -82,3 +87,13 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
+
+def validate_secret_key(secret_key: str) -> None:
+    placeholder = "change-me-to-a-long-random-string-at-least-32-chars"
+    if not secret_key or len(secret_key) < 32 or secret_key == placeholder:
+        raise RuntimeError(
+            "SECRET_KEY is missing, too short (< 32 characters), or still using the insecure default placeholder. "
+            "Please generate and configure a secure random key:\n"
+            'python -c "import secrets; print(secrets.token_urlsafe(48))"'
+        )
