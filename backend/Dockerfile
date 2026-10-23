@@ -26,12 +26,14 @@ RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/data && \
     chown -R appuser:appuser /app
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Copy entrypoint and application code
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-USER appuser
+COPY --chown=appuser:appuser . .
 
 EXPOSE 8000
 
-# Start server bound to all interfaces
+# Entrypoint script configures volume permissions and starts uvicorn as appuser
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
