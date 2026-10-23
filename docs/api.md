@@ -18,7 +18,102 @@ Returns system health status.
 
 ---
 
-## 2. Documents
+## 2. Authentication
+
+### Auth & Data Isolation Rules
+- **Header:** Every endpoint except `GET /health`, `POST /auth/signup`, and `POST /auth/login` requires the header `Authorization: Bearer <access_token>`. Missing or invalid tokens return `401 Unauthorized` with `{"detail": "Not authenticated"}`.
+- **Data Isolation:** All documents, chat sessions, chat messages, and vector embeddings belong strictly to the authenticated user. Requesting another user's document or session returns `404 Not Found`.
+- **Validation Rules:**
+  - `name`: 2–60 characters (trimmed).
+  - `email`: valid format, stored lowercase, must be unique across accounts.
+  - `password`: 8–72 characters, containing at least one letter and one number.
+
+### `POST /auth/signup`
+Creates a new user account and returns an access token immediately.
+- **Request Body**:
+  ```json
+  {
+    "name": "Yash",
+    "email": "a@b.com",
+    "password": "Passw0rd!"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "access_token": "eyJhbGciOi...",
+    "token_type": "bearer",
+    "user": {
+      "id": 1,
+      "name": "Yash",
+      "email": "a@b.com",
+      "created_at": "2026-10-13T14:30:00Z"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `409 Conflict`: Email already exists.
+    ```json
+    {"detail": "An account with this email already exists"}
+    ```
+  - `422 Unprocessable Entity`: Field validation error (invalid email, weak password, or name length).
+    ```json
+    {"detail": "password must be at least 8 characters and include at least one letter and one number"}
+    ```
+
+### `POST /auth/login`
+Authenticates an existing user and returns an access token.
+- **Request Body**:
+  ```json
+  {
+    "email": "a@b.com",
+    "password": "Passw0rd!"
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "access_token": "eyJhbGciOi...",
+    "token_type": "bearer",
+    "user": {
+      "id": 1,
+      "name": "Yash",
+      "email": "a@b.com",
+      "created_at": "2026-10-13T14:30:00Z"
+    }
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Invalid credentials (constant-time verification to prevent timing attacks).
+    ```json
+    {"detail": "Invalid email or password"}
+    ```
+  - `429 Too Many Requests`: Rate limit exceeded (5 failed attempts within 15 minutes).
+    ```json
+    {"detail": "Too many failed attempts. Try again later."}
+    ```
+
+### `GET /auth/me`
+Retrieves the currently authenticated user's profile.
+- **Headers**: `Authorization: Bearer <access_token>`
+- **Response `200 OK`**:
+  ```json
+  {
+    "id": 1,
+    "name": "Yash",
+    "email": "a@b.com",
+    "created_at": "2026-10-13T14:30:00Z"
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Missing, expired, or invalid token.
+    ```json
+    {"detail": "Not authenticated"}
+    ```
+
+---
+
+## 3. Documents
 
 ### `POST /documents/upload`
 Uploads and indexes a study document into the system.
@@ -88,7 +183,7 @@ Removes the document from the database, deletes the disk file, and removes vecto
 
 ---
 
-## 3. Chat (RAG)
+## 4. Chat (RAG)
 
 ### `POST /chat`
 Asks a question grounded strictly in uploaded documents.
@@ -180,7 +275,7 @@ Retrieves previous messages and cited sources for a chat session.
 
 ---
 
-## 4. Study Tools
+## 5. Study Tools
 
 ### `POST /study/summary`
 Generates an executive study summary with Key Concepts, Definitions, and Core Takeaways in Markdown.
@@ -248,13 +343,16 @@ Generates multiple-choice quiz questions with 4 options and explanations.
 
 ---
 
-## 5. Standard Error Status Reference
+## 6. Standard Error Status Reference
 
 | Status Code | Reason | Example Detail |
 |---|---|---|
 | `400 Bad Request` | Invalid input or unreadable file format | `{"detail": "Uploaded file is empty."}` |
+| `401 Unauthorized` | Missing/invalid token or wrong login credentials | `{"detail": "Not authenticated"}` |
 | `404 Not Found` | Target document or chat session does not exist | `{"detail": "Document with ID 10 not found."}` |
+| `409 Conflict` | User registration with duplicate email | `{"detail": "An account with this email already exists"}` |
 | `413 Payload Too Large` | Upload file size exceeds `MAX_FILE_MB` | `{"detail": "File exceeds maximum size limit of 20MB."}` |
 | `422 Unprocessable Entity` | Pydantic schema validation failure | `{"detail": "question: field required"}` |
+| `429 Too Many Requests` | Too many failed login attempts | `{"detail": "Too many failed attempts. Try again later."}` |
 | `500 Internal Server Error` | Unexpected server exception | `{"detail": "Something went wrong on the server"}` |
 | `502 Bad Gateway` | AI Provider API error (Gemini) | `{"detail": "AI service error: Service Unavailable"}` |

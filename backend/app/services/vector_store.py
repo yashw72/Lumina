@@ -21,7 +21,12 @@ def get_document_collection(client: Optional[chromadb.ClientAPI] = None):
     )
 
 
-def add_chunks(document_id: int, filename: str, chunks: List[Dict[str, Any]]) -> None:
+def add_chunks(
+    document_id: int,
+    filename: str,
+    chunks: List[Dict[str, Any]],
+    user_id: Optional[int] = None,
+) -> None:
     """
     Stores document chunks and their embeddings in ChromaDB.
     IDs format: doc{document_id}-chunk{chunk_index}
@@ -37,6 +42,7 @@ def add_chunks(document_id: int, filename: str, chunks: List[Dict[str, Any]]) ->
     ids = [f"doc{document_id}-chunk{c['chunk_index']}" for c in chunks]
     metadatas = [
         {
+            "user_id": int(user_id) if user_id is not None else 0,
             "document_id": document_id,
             "filename": filename,
             "page": c["page"],

@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from app.core.config import get_settings
 from app.main import app
 from app.services import llm
+from tests.conftest import create_test_auth_headers
 
 
 def test_end_to_end_workflow(tmp_path, monkeypatch):
@@ -20,11 +21,14 @@ def test_end_to_end_workflow(tmp_path, monkeypatch):
     )
 
     with TestClient(app) as client:
-        # Step 1: Health Check
+        # Step 1: Health Check (public, no auth)
         health = client.get("/api/health")
         assert health.status_code == 200
 
-        # Step 2: Upload Document
+        # Step 2: Sign up fresh test user
+        user_id, headers = create_test_auth_headers(client, "e2e")
+
+        # Step 3: Upload Document
         content = (
             b"Concurrency and Multithreading in Modern Systems.\n\n"
             b"Concurrency allows multiple computations to execute during overlapping time periods.\n"
@@ -32,6 +36,7 @@ def test_end_to_end_workflow(tmp_path, monkeypatch):
         )
         upload_res = client.post(
             "/api/documents/upload",
+            headers=headers,
             files={"file": ("concurrency.txt", io.BytesIO(content), "text/plain")},
         )
         assert upload_res.status_code == 201, upload_res.text
@@ -39,9 +44,10 @@ def test_end_to_end_workflow(tmp_path, monkeypatch):
         doc_id = doc["id"]
         assert doc["status"] == "ready"
 
-        # Step 3: Chat with the uploaded document
+        # Step 4: Chat with the uploaded document
         chat_res = client.post(
             "/api/chat",
+            headers=headers,
             json={
                 "question": "What does concurrency allow in modern systems?",
                 "document_ids": [doc_id],
@@ -55,19 +61,20 @@ def test_end_to_end_workflow(tmp_path, monkeypatch):
         assert len(chat_data["sources"]) > 0
         assert chat_data["sources"][0]["document_id"] == doc_id
 
-        # Step 4: Verify chat history
+        # Step 5: Verify chat history
         session_id = chat_data["session_id"]
-        hist_res = client.get(f"/api/chat/history/{session_id}")
+        hist_res = client.get(f"/api/chat/history/{session_id}", headers=headers)
         assert hist_res.status_code == 200
         assert len(hist_res.json()["messages"]) == 2
 
-        # Step 5: Delete Document
-        del_res = client.delete(f"/api/documents/{doc_id}")
+        # Step 6: Delete Document
+        del_res = client.delete(f"/api/documents/{doc_id}", headers=headers)
         assert del_res.status_code == 200
 
-        # Step 6: Post-deletion check: Chat still functions and does not crash
+        # Step 7: Post-deletion check: Chat still functions and does not crash
         post_del_chat = client.post(
             "/api/chat",
+            headers=headers,
             json={
                 "question": "Tell me about concurrency",
                 "session_id": session_id,

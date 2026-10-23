@@ -11,3 +11,6 @@ python-docx
 google-genai
 pytest
 httpx
+argon2-cffi
+PyJWT
+email-validator

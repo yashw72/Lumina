@@ -1,11 +1,13 @@
 import io
+import uuid
 from pathlib import Path
 from fastapi.testclient import TestClient
 from app.main import app
 from app.core.config import Settings, PROJECT_ROOT
 from app.services import vector_store, rag, llm
 from app.db.database import SessionLocal
-from app.db.models import ChatSession, ChatMessage
+from app.db.models import ChatSession, ChatMessage, Document, User
+from tests.conftest import create_test_auth_headers
 
 
 def test_get_document_chunks_ordering(tmp_path, monkeypatch):
@@ -40,8 +42,10 @@ def test_path_resolution_relative_to_root():
 
 def test_validation_error_returns_string_detail():
     with TestClient(app) as client:
-        # Send empty JSON payload to /api/chat (missing 'question')
-        res = client.post("/api/chat", json={})
+        user_id, headers = create_test_auth_headers(client, "val")
+
+        # Send empty JSON payload to /api/chat (missing 'question') with valid auth
+        res = client.post("/api/chat", headers=headers, json={})
         assert res.status_code == 422
         data = res.json()
         assert "detail" in data
@@ -54,9 +58,12 @@ def test_file_too_large_returns_413(monkeypatch):
     monkeypatch.setattr(get_settings(), "MAX_FILE_MB", 1)
 
     with TestClient(app) as client:
+        user_id, headers = create_test_auth_headers(client, "bigfile")
+
         oversized = b"A" * (2 * 1024 * 1024)  # 2MB > 1MB
         res = client.post(
             "/api/documents/upload",
+            headers=headers,
             files={"file": ("big.txt", io.BytesIO(oversized), "text/plain")},
         )
         assert res.status_code == 413
@@ -65,11 +72,17 @@ def test_file_too_large_returns_413(monkeypatch):
 
 
 def test_follow_up_question_enrichment(monkeypatch):
-    import uuid
     sid = f"followup-{uuid.uuid4().hex[:8]}"
-    # Setup test session in DB
     db = SessionLocal()
-    session = ChatSession(id=sid)
+    # Create test user and document
+    user = User(name="Followup User", email=f"fu_{uuid.uuid4().hex[:8]}@test.com", password_hash="hash")
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    doc = Document(user_id=user.id, filename="deadlock.pdf", file_type="pdf", stored_path="dummy.pdf", status="ready")
+    db.add(doc)
+    session = ChatSession(id=sid, user_id=user.id)
     db.add(session)
     user_msg_1 = ChatMessage(session_id=sid, role="user", content="What is deadlock?")
     asst_msg_1 = ChatMessage(session_id=sid, role="assistant", content="Deadlock is ...")
@@ -94,6 +107,7 @@ def test_follow_up_question_enrichment(monkeypatch):
         question="how does it happen?",  # 4 words < 6 words
         document_ids=None,
         session_id=sid,
+        user_id=user.id,
     )
     db.close()
 

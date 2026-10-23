@@ -25,6 +25,7 @@ def ingest_document(db: Session, document: Document) -> Document:
             document_id=document.id,
             filename=document.filename,
             chunks=chunks,
+            user_id=document.user_id,
         )
 
         document.page_count = len(pages)

@@ -1,19 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { sendMessage, getHistory } from '../api/chat.js';
-
-const STORAGE_KEY = 'documentor.chat';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function useChat(selectedDocIds = []) {
+  const { user } = useAuth();
+  const storageKey = user?.id ? `documentor_chat_session_${user.id}` : 'documentor_chat_session';
+
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.sessionId === 'session-sample-1') {
-          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(storageKey);
           return null;
         }
         return parsed.sessionId || null;
@@ -23,6 +25,23 @@ export function useChat(selectedDocIds = []) {
   });
 
   const abortControllerRef = useRef(null);
+
+  // When switching users, reload or reset session
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSessionId(parsed.sessionId || null);
+      } else {
+        setSessionId(null);
+        setMessages([]);
+      }
+    } catch {
+      setSessionId(null);
+      setMessages([]);
+    }
+  }, [storageKey]);
 
   // Restore chat history if sessionId exists
   useEffect(() => {
@@ -48,7 +67,7 @@ export function useChat(selectedDocIds = []) {
         if (isMounted) {
           setSessionId(null);
           try {
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(storageKey);
           } catch (_) {}
         }
       }
@@ -64,13 +83,13 @@ export function useChat(selectedDocIds = []) {
         abortControllerRef.current.abort();
       }
     };
-  }, [sessionId]);
+  }, [sessionId, storageKey]);
 
-  // Persist session to localStorage
+  // Persist session to localStorage under user-specific key
   const saveSessionState = (newSessionId, docIds) => {
     try {
       localStorage.setItem(
-        STORAGE_KEY,
+        storageKey,
         JSON.stringify({
           sessionId: newSessionId,
           documentIds: docIds,
@@ -126,16 +145,16 @@ export function useChat(selectedDocIds = []) {
         setSending(false);
       }
     },
-    [sending, selectedDocIds, sessionId]
+    [sending, selectedDocIds, sessionId, storageKey]
   );
 
   const newChat = useCallback(() => {
     setMessages([]);
     setSessionId(null);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     } catch (_) {}
-  }, []);
+  }, [storageKey]);
 
   return {
     messages,

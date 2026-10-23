@@ -65,14 +65,16 @@ flowchart TD
 
 ## ✨ Key Features
 
+- **User Accounts & Secure Authentication**: Real account creation (`/api/auth/signup`), secure login (`/api/auth/login`), and profile inspection (`/api/auth/me`). Passwords are protected using state-of-the-art Argon2id hashing; API sessions are issued as signed 24-hour PyJWT tokens. Includes login brute-force protection (5 attempts / 15 minutes).
+- **Strict Multi-Tenant Data Isolation**: Complete privacy guarantee. Uploaded documents, vector embeddings, disk storage (`uploads/<user_id>/`), and chat sessions are strictly partitioned by authenticated user. Direct cross-user access attempts return HTTP 404 (Privacy Shield).
 - **Document Ingestion & Library**: Drag-and-drop upload for PDF, DOCX, TXT, and Markdown files up to 20MB with real-time upload progress, embedding processing feedback, file status badges, and deletion confirmations.
 - **Strict RAG Document Chat**: Conversational AI assistant whose responses are strictly grounded in user-selected study materials, complete with collapsible page-level source citations and relevance scores.
-- **Chat Session Persistence**: Conversations persist across page reloads in `localStorage` and can be restored or cleared with a dedicated "New Chat" option.
+- **Per-User Chat Session Persistence**: Conversations persist across page reloads in `localStorage` under user-specific keys and can be restored or cleared with a dedicated "New Chat" option.
 - **Executive Study Summaries**: Generates structured Markdown summaries highlighting key objectives, core concepts, theorems, and recommended exam review points.
 - **Interactive 3D Flashcards**: Flip cards with front (question) and back (verified answer) views, keyboard navigation (`Space`, `←`, `→`), shuffle capability, and configurable deck sizes (5, 10, 15).
 - **Knowledge Check Quizzes**: Multiple-choice quizzes with instant correctness feedback (green/red), comprehensive explanations, dynamic scorekeeping, and end-of-quiz score summary screens.
 - **Modern Responsive Design & Dark Mode**: Built with Tailwind CSS, sleek typography, accessible focus states, responsive layouts for mobile/tablet/desktop, and theme toggle persisting in `localStorage`.
-- **Backend Health & Error Banner**: Automatic connectivity heartbeat checking every 30s (5s when offline) with retry triggers and human-readable error toasts for 400/404/413/422/500/502 errors.
+- **Backend Health & Error Banner**: Automatic connectivity heartbeat checking every 30s (5s when offline) with retry triggers and human-readable error toasts for 400/401/404/413/422/500/502 errors.
 - **Mock Mode for Offline Development**: Toggleable `VITE_USE_MOCK=true` mode allowing full frontend exploration without requiring the backend server.
 
 ---
@@ -82,7 +84,7 @@ flowchart TD
 | Layer | Technologies |
 |---|---|
 | **Frontend** | React 18, Vite, Tailwind CSS, Lucide React, React Router DOM v6, Axios, React Hot Toast, React Markdown |
-| **Backend** | Python 3.11+, FastAPI, Uvicorn, SQLAlchemy, SQLite, Pydantic v2 / Settings |
+| **Backend** | Python 3.11+, FastAPI, Uvicorn, SQLAlchemy, SQLite, Pydantic v2 / Settings, Argon2 (`argon2-cffi`), PyJWT |
 | **Vector & AI** | ChromaDB, `sentence-transformers` (`all-MiniLM-L6-v2`), Google Gemini (`google-genai` SDK) |
 | **Parsers** | `pypdf`, `python-docx` |
 | **Containerization** | Docker, Docker Compose, Multi-stage Node/Nginx, Python 3.11-slim CPU |
@@ -98,17 +100,19 @@ flowchart TD
    git clone https://github.com/yashw72/Lumina.git
    cd Lumina
    ```
-2. Configure your Gemini API key in `backend/.env`:
+2. Configure environment variables in `backend/.env`:
    ```bash
    cp backend/.env.example backend/.env
-   # Edit backend/.env and paste your GEMINI_API_KEY
+   # Generate a cryptographically secure SECRET_KEY:
+   python -c "import secrets; print(secrets.token_urlsafe(48))"
+   # Edit backend/.env and paste your GEMINI_API_KEY and SECRET_KEY
    ```
 3. Run with Docker Compose:
    ```bash
    docker compose up --build
    ```
 4. Access the apps:
-   - **Frontend UI:** [http://localhost:5173](http://localhost:5173)
+   - **Frontend UI:** [http://localhost:5173](http://localhost:5173) (redirects to `/login` for account creation)
    - **Backend API & Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
    - **API Health Check:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
@@ -136,7 +140,9 @@ pip install -r requirements.txt
 
 # Configure environment variables
 cp .env.example .env
-# Edit backend/.env and add your GEMINI_API_KEY
+# Generate a random 48-byte SECRET_KEY:
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Edit backend/.env and add your GEMINI_API_KEY and SECRET_KEY
 
 # Launch FastAPI development server
 uvicorn app.main:app --reload --port 8000
@@ -166,6 +172,10 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 | Variable | Default Value | Description |
 |---|---|---|
+| `SECRET_KEY` | *(required)* | 32+ char secret key for signing HS256 JWT tokens |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | JWT token validity lifetime (default: 24 hours) |
+| `LOGIN_MAX_ATTEMPTS` | `5` | Maximum failed login attempts before lockout |
+| `LOGIN_WINDOW_MINUTES` | `15` | Window duration for tracking failed login attempts |
 | `GEMINI_API_KEY` | *(required)* | Google Gemini API key from Google AI Studio |
 | `LLM_MODEL` | `gemini-2.5-flash` | Gemini model variant used for chat and study tools |
 | `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Hugging Face embedding model (downloads locally on first start) |
@@ -194,7 +204,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 cd backend
 pytest
 ```
-*Executes all 20 test cases covering health checks, file validation, text chunking, vector indexing, RAG grounding, study tools, and error contracts.*
+*Executes all 35 test cases covering health checks, auth signup/login/profile, Argon2 hashing, PyJWT tokens, rate limiting, multi-tenant isolation, document validation, text chunking, vector indexing, RAG grounding, study tools, and error contracts.*
 
 ### Run End-to-End API Smoke Test
 With the backend server running on `http://localhost:8000`:
@@ -205,9 +215,10 @@ python backend/scripts/smoke_test.py
 # Or run contract verification skipping LLM calls (ideal for CI / offline test)
 python backend/scripts/smoke_test.py --skip-llm
 ```
+*Verifies unauthenticated 401 protection, creates a random test user, acquires a JWT bearer token, and runs the full pipeline with authenticated headers.*
 
 ### Full Manual QA Checklist
-Refer to [`docs/testing.md`](docs/testing.md) for the complete 42-case end-to-end verification checklist covering edge cases, responsive UI, network interruptions, and browser storage persistence.
+Refer to [`docs/testing.md`](docs/testing.md) for the complete 56-case end-to-end verification checklist covering authentication, user isolation, edge cases, responsive UI, network interruptions, and browser storage persistence.
 
 ---
 
@@ -259,16 +270,38 @@ Lumina/
 
 See [`docs/api.md`](docs/api.md) for full interactive JSON payload schemas and exact status codes.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Service health status check |
-| `POST` | `/api/documents/upload` | Multipart file upload (PDF, DOCX, TXT, MD) |
-| `GET` | `/api/documents` | List all ingested documents and their chunk counts |
-| `DELETE` | `/api/documents/{id}` | Delete document from database, disk, and vector store |
-| `POST` | `/api/chat` | Strict RAG conversational query against chosen documents |
-| `POST` | `/api/study/summary` | Generate executive markdown study summary |
-| `POST` | `/api/study/flashcards` | Generate front/back flashcard deck (5, 10, or 15 cards) |
-| `POST` | `/api/study/quiz` | Generate multiple choice questions with explanations |
+| Method | Endpoint | Auth Required | Description |
+|---|---|---|---|
+| `GET` | `/api/health` | No | Public service health status check |
+| `POST` | `/api/auth/signup` | No | Create student account (returns JWT token and profile) |
+| `POST` | `/api/auth/login` | No | Authenticate with email and password |
+| `GET` | `/api/auth/me` | **Yes** | Validate session token and retrieve current user profile |
+| `POST` | `/api/documents/upload` | **Yes** | Multipart file upload (PDF, DOCX, TXT, MD) |
+| `GET` | `/api/documents` | **Yes** | List user's ingested documents and their chunk counts |
+| `DELETE` | `/api/documents/{id}` | **Yes** | Delete user's document from database, disk, and vector store |
+| `POST` | `/api/chat` | **Yes** | Strict RAG conversational query against user's documents |
+| `GET` | `/api/chat/history/{sessionId}` | **Yes** | Retrieve chat turn history for user's session |
+| `POST` | `/api/study/summary` | **Yes** | Generate executive markdown study summary |
+| `POST` | `/api/study/flashcards` | **Yes** | Generate front/back flashcard deck (5, 10, or 15 cards) |
+| `POST` | `/api/study/quiz` | **Yes** | Generate multiple choice questions with explanations |
+
+---
+
+## ☁️ Deployment Notes
+
+- **Hugging Face Spaces**: Add `SECRET_KEY` and `GEMINI_API_KEY` under **Settings > Variables and secrets > Secrets** (do **not** use public Variables). The backend verifies `SECRET_KEY` on startup and refuses to launch if it is missing or weak.
+- **Cross-Domain Frontend Deployment** (e.g. Vercel / Netlify): Ensure the backend `CORS_ORIGINS` environment variable lists the exact production frontend origin (e.g., `https://docu-mentor.vercel.app`), including protocol without a trailing slash.
+- **Token Lifetime**: Bearer JWT tokens expire automatically after 24 hours (`ACCESS_TOKEN_EXPIRE_MINUTES=1440`). Upon expiry, the frontend interceptor smoothly clears the session and prompts re-authentication.
+- **Ephemeral Storage on Free Cloud Hosts**: Free hosting instances (like Render or Hugging Face basic tiers) reset local disk storage upon restart. This will wipe SQLite databases, uploaded document files in `data/uploads/`, and ChromaDB vectors in `data/chroma/`. For permanent deployments, mount a persistent volume (e.g., Docker persistent volume, AWS EBS, or Render Persistent Disk).
+
+---
+
+## ⚠️ Known Limitations
+
+1. **No Password Reset / Forgot Password**: For demo simplicity, password reset links and email recovery are not implemented. Accounts can be re-registered or managed directly in SQLite.
+2. **No Email Verification**: Accounts are activated immediately upon signup without an email confirmation roundtrip.
+3. **In-Memory Rate Limiting**: The login brute-force limiter (`LoginRateLimiter`) operates in-memory on the backend process. If running multiple Uvicorn worker processes behind a load balancer, use Redis for distributed rate-limiting.
+4. **Token Storage**: The JWT token is persisted in browser `localStorage` (`documentor_token`) with safe error-handling fallbacks.
 
 ---
 
@@ -300,11 +333,15 @@ See [`docs/api.md`](docs/api.md) for full interactive JSON payload schemas and e
 - **Symptom**: `Access to XMLHttpRequest at 'http://localhost:8000/api/...' from origin 'http://localhost:5173' has been blocked by CORS policy.`
 - **Solution**: Check `CORS_ORIGINS` in `backend/.env`. Ensure it includes `http://localhost:5173` and `http://127.0.0.1:5173`. In Docker Compose, this is automatically configured.
 
-### 3. First Backend Startup is Slow (60–90 seconds)
+### 3. Missing or Weak SECRET_KEY on Backend Startup
+- **Symptom**: Backend refuses to start with `RuntimeError: SECRET_KEY must be set in production and at least 32 characters long.`
+- **Solution**: Generate a key via `python -c "import secrets; print(secrets.token_urlsafe(48))"` and set it in `backend/.env` or Docker environment.
+
+### 4. First Backend Startup is Slow (60–90 seconds)
 - **Symptom**: The backend server starts, but the first search or health check takes noticeable time.
 - **Reason**: On first launch, `sentence-transformers` automatically downloads the `all-MiniLM-L6-v2` weights (~80MB) and warms up the model in a background thread so user requests don't block. Subsequent requests are instant. In Docker, the model is pre-cached during image build time.
 
-### 4. Port Already in Use (`8000` or `5173`)
+### 5. Port Already in Use (`8000` or `5173`)
 - **Symptom**: `[Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000)` or `Port 5173 is already in use`.
 - **Solution**: Stop any dangling processes:
   - Windows: `netstat -ano | findstr :8000` followed by `taskkill /PID <PID> /F`

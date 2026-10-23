@@ -8,13 +8,14 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.staticfiles import StaticFiles
-from app.core.config import get_settings
+from app.core.config import get_settings, validate_secret_key
 from app.core.logging import setup_logging
 from app.db.database import engine, Base, ensure_db_schema
 import app.db.models  # noqa: F401
 from app.services.llm import LLMError
 from app.services.embeddings import get_embedding_model
 from app.api.routes.health import router as health_router
+from app.api.routes.auth import router as auth_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.study import router as study_router
@@ -35,6 +36,9 @@ def _warmup_embedding_model():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Validate application secret key configuration
+    validate_secret_key(settings.SECRET_KEY)
+
     # Ensure data directories exist on startup
     upload_path = Path(settings.UPLOAD_DIR)
     chroma_path = Path(settings.CHROMA_DIR)
@@ -121,6 +125,7 @@ app.add_middleware(
 
 # Routes
 app.include_router(health_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(study_router, prefix="/api")
