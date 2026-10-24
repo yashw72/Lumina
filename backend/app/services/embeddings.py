@@ -1,7 +1,13 @@
+import gc
+import os
 import threading
 from typing import List, Optional
+import torch
 from sentence_transformers import SentenceTransformer
 from app.core.config import get_settings
+
+# Limit PyTorch CPU threads to reduce memory footprint in constrained container environments
+torch.set_num_threads(1)
 
 _model_lock = threading.Lock()
 _model_instance: Optional[SentenceTransformer] = None
@@ -15,6 +21,7 @@ def get_embedding_model() -> SentenceTransformer:
             if _model_instance is None:
                 settings = get_settings()
                 _model_instance = SentenceTransformer(settings.EMBEDDING_MODEL)
+                gc.collect()
     return _model_instance
 
 

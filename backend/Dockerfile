@@ -18,20 +18,30 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the default embedding model at build time
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+# Set Hugging Face cache directory and thread optimization for low-memory environments
+ENV HF_HOME=/app/hf_cache \
+    TRANSFORMERS_OFFLINE=1 \
+    HF_HUB_OFFLINE=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1
 
-# Create non-root user
+# Pre-download the default embedding model into /app/hf_cache at build time
+RUN mkdir -p /app/hf_cache && \
+    python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+# Create non-root user and ensure ownership of /app including hf_cache and data
 RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/data && \
+    mkdir -p /app/data /app/hf_cache && \
     chown -R appuser:appuser /app
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Copy entrypoint and application code
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-USER appuser
+COPY --chown=appuser:appuser . .
 
 EXPOSE 8000
 
-# Start server bound to all interfaces
+# Entrypoint script configures volume permissions and starts uvicorn as appuser
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
