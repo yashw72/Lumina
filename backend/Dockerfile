@@ -20,10 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Set Hugging Face cache directory and thread optimization for low-memory environments
 ENV HF_HOME=/app/hf_cache \
-    TRANSFORMERS_OFFLINE=1 \
-    HF_HUB_OFFLINE=1 \
     OMP_NUM_THREADS=1 \
-    MKL_NUM_THREADS=1
+    MKL_NUM_THREADS=1 \
+    PYTHONUNBUFFERED=1
 
 # Pre-download the default embedding model into /app/hf_cache at build time
 RUN mkdir -p /app/hf_cache && \
