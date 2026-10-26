@@ -4,9 +4,9 @@ from typing import List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Project root contains backend/ and data/
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+# Project root contains backend/ and data/ in monorepo, or /app in container
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = BACKEND_DIR.parent if (BACKEND_DIR.parent / "backend").is_dir() else BACKEND_DIR
 
 
 class Settings(BaseSettings):

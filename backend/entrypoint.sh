@@ -7,8 +7,16 @@ chown -R appuser:appuser /app/data 2>/dev/null || chmod -R 777 /app/data 2>/dev/
 
 PORT="${PORT:-8000}"
 
-if [ $# -eq 0 ] || [ "$1" = "uvicorn" ]; then
-    exec su -s /bin/sh appuser -c "exec uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+if [ "$(id -u)" = "0" ]; then
+    if [ $# -eq 0 ] || [ "$1" = "uvicorn" ]; then
+        exec su -p -s /bin/sh appuser -c "exec uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    else
+        exec su -p -s /bin/sh appuser -c "exec $*"
+    fi
 else
-    exec su -s /bin/sh appuser -c "exec $*"
+    if [ $# -eq 0 ] || [ "$1" = "uvicorn" ]; then
+        exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
+    else
+        exec "$@"
+    fi
 fi
